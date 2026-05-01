@@ -639,18 +639,24 @@ function bindFormEvents(){
     if(rm) rm.addEventListener('click',()=>{ state.editing.variants.splice(i,1); refreshVariants(); });
   });
   $$('#sheetBody .actions button').forEach(b=>{
-    b.addEventListener('click', async e=>{
+    b.addEventListener('click', e=>{
       e.preventDefault();
       const act = b.dataset.act;
       if(act==='del'){
         if(!confirm('Delete this product?')) return;
         const idToDel = state.editing.id;
-        await DB.del(idToDel);
-        Drive.deleteProduct(idToDel);
-        await reload(); close(); toast('Deleted');
+        DB.del(idToDel).then(()=>{ Drive.deleteProduct(idToDel); reload().then(()=>{ close(); toast('Deleted'); }); });
       } else if(act==='pdf'){
-        const ok = await save({silent:true});
-        if(ok) generatePDF(state.editing.id);
+        // SYNC path — iOS Safari blocks window.print() outside user gesture, so no await
+        const it = state.editing;
+        if(!it.name || !it.name.trim()){ toast('Product name is required', true); return; }
+        it.updatedAt = Date.now();
+        const idx = state.products.findIndex(p=>p.id===it.id);
+        const snap = JSON.parse(JSON.stringify(it));
+        if(idx >= 0) state.products[idx] = snap; else state.products.push(snap);
+        DB.put(it);
+        Drive.syncProduct(it);
+        generatePDF(it.id);
       }
     });
   });
@@ -745,20 +751,19 @@ function generatePDF(id){
   `;
   const el = $('#pdfRender');
   el.innerHTML = html;
-  // set safe document title so the saved PDF uses the product name
   const origTitle = document.title;
   const safeName = (p.name||'product').replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'_').slice(0,60) || 'product';
   document.title = `canton_${safeName}`;
   document.body.classList.add('printing');
-  // small delay to let layout settle before print dialog opens
+  // Force layout flush, then print SYNCHRONOUSLY so iOS Safari accepts it as user-initiated
+  void el.offsetHeight;
+  window.print();
+  // restore on next tick (after print dialog has captured what it needs)
   setTimeout(()=>{
-    window.print();
-    setTimeout(()=>{
-      document.body.classList.remove('printing');
-      document.title = origTitle;
-      el.innerHTML = '';
-    }, 600);
-  }, 100);
+    document.body.classList.remove('printing');
+    document.title = origTitle;
+    el.innerHTML = '';
+  }, 800);
 }
 
 /* =================== BACKUP =================== */
