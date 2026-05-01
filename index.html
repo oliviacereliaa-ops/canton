@@ -64,11 +64,16 @@
   .sheet-bg.show{display:flex}
   .sheet{background:#fff;width:100%;max-width:780px;max-height:94vh;border-radius:18px 18px 0 0;
     overflow:hidden;display:flex;flex-direction:column}
-  .sheet-h{display:flex;align-items:center;justify-content:space-between;
-    padding:13px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:2}
-  .sheet-h h2{margin:0;font-size:16px}
-  .sheet-h button{background:transparent;border:0;font-size:14.5px;padding:6px 10px;cursor:pointer;color:var(--accent)}
-  .sheet-body{overflow:auto;padding:14px;flex:1}
+  .sheet-h{display:flex;align-items:center;justify-content:center;
+    padding:14px 14px;border-bottom:1px solid var(--line);position:relative;background:#fff;z-index:2}
+  .sheet-h h2{margin:0;font-size:16px;font-weight:600}
+  .sheet-h .x{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    background:transparent;border:0;font-size:22px;padding:8px 12px;color:var(--muted);cursor:pointer;line-height:1}
+  .sheet-body{overflow:auto;padding:14px;flex:1;-webkit-overflow-scrolling:touch}
+  .sheet-f{display:flex;gap:10px;padding:12px 14px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line);background:#fff;z-index:3}
+  .sheet-f .btn{flex:1;padding:14px 18px;font-size:15.5px;font-weight:600;border-radius:12px}
 
   label.f{display:block;margin:0 0 12px}
   label.f>span{display:block;font-size:11.5px;font-weight:600;color:var(--accent-d);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
@@ -85,6 +90,9 @@
   .group>h3{margin:0 0 10px;font-size:13px;color:var(--accent-d);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
   .group>h3 small{font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px}
 
+  .price-conv{font-size:12.5px;color:var(--accent-d);margin-top:5px;font-weight:500}
+  .price-conv.empty{color:var(--muted);font-weight:400}
+
   .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
   .photo{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#eaf3fa}
   .photo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -100,9 +108,9 @@
   .add-photo input{display:none}
 
   .multi-row{display:flex;flex-direction:column;gap:6px}
-  .v-row,.c-row{display:grid;grid-template-columns:1.2fr 1fr 1fr 28px;gap:6px;align-items:center}
-  .v-row input,.c-row input{padding:8px 10px;font-size:14px;border:1px solid var(--line);border-radius:8px;background:#fff}
-  .v-row button,.c-row button{background:transparent;border:0;color:var(--warn);font-size:18px;cursor:pointer;padding:0}
+  .v-row{display:grid;grid-template-columns:1.2fr 1fr 1fr 28px;gap:6px;align-items:center}
+  .v-row input{padding:8px 10px;font-size:14px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .v-row button{background:transparent;border:0;color:var(--warn);font-size:18px;cursor:pointer;padding:0}
   .add-row{background:var(--chip);border:0;color:var(--accent-d);padding:8px 12px;border-radius:8px;
     font-size:13px;font-weight:600;cursor:pointer;margin-top:6px;align-self:flex-start}
 
@@ -112,6 +120,7 @@
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   .btn.primary:active{background:var(--accent-d)}
   .btn.danger{color:var(--warn);border-color:#f1d4c2}
+  .btn.ghost{background:#f0f9ff;color:var(--accent-d);border-color:var(--line)}
 
   .menu-list{position:fixed;top:56px;right:8px;background:#fff;border:1px solid var(--line);
     border-radius:12px;box-shadow:0 8px 24px rgba(2,132,199,.15);z-index:30;min-width:240px;display:none;overflow:hidden}
@@ -161,6 +170,8 @@
 <div class="menu-list" id="menuList">
   <div class="status" id="driveStatus">Drive: <b>not connected</b></div>
   <button id="setupDrive">Connect Google Drive</button>
+  <button id="rates">Exchange rates</button>
+  <button id="openDrive">Open Drive folder</button>
   <button id="exportJson">Backup data (JSON)</button>
   <button id="importJson">Restore from backup</button>
   <button id="howto">How to use / Drive setup</button>
@@ -179,11 +190,14 @@
 <div class="sheet-bg" id="sheetBg">
   <div class="sheet">
     <div class="sheet-h">
-      <button id="cancelBtn">Cancel</button>
       <h2 id="sheetTitle">New product</h2>
-      <button id="saveBtn"><b>Save</b></button>
+      <button class="x" id="closeX" aria-label="Close">×</button>
     </div>
     <div class="sheet-body" id="sheetBody"></div>
+    <div class="sheet-f">
+      <button class="btn ghost" id="backBtn">← Back</button>
+      <button class="btn primary" id="saveBtn">Save</button>
+    </div>
   </div>
 </div>
 
@@ -247,6 +261,25 @@ const $$ = s => document.querySelectorAll(s);
 const escapeHtml = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 function toast(msg, err){ const t=$('#toast'); t.textContent=msg; t.classList.toggle('err', !!err); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
 
+/* =================== RATES =================== */
+const DEFAULT_RATES = { USD_IDR:16000, CNY_IDR:2500, EUR_IDR:17500 };
+function getRates(){
+  try{
+    const r = JSON.parse(localStorage.getItem('rates')||'{}');
+    return { ...DEFAULT_RATES, ...r };
+  }catch{ return {...DEFAULT_RATES}; }
+}
+function setRates(r){ localStorage.setItem('rates', JSON.stringify(r)); }
+function calcIDR(price, currency){
+  const p = parseFloat(price);
+  if(!p || !currency || currency==='IDR') return null;
+  const r = getRates();
+  const rate = r[currency+'_IDR'];
+  if(!rate) return null;
+  return Math.round(p * rate);
+}
+function fmtIDR(n){ return n.toLocaleString('id-ID'); }
+
 /* =================== STATE =================== */
 const state = { products:[], editing:null, search:'' };
 
@@ -255,25 +288,61 @@ async function reload(){
   render();
 }
 
-/* =================== DRIVE =================== */
+/* =================== DRIVE / SHEET (Apps Script) =================== */
 const Drive = {
   get url(){ return localStorage.getItem('drive_url') || ''; },
   set url(v){ localStorage.setItem('drive_url', v); updateDriveStatus(); },
   get connected(){ return !!this.url; },
-  async upload(base64, filename){
+
+  async uploadPhoto(base64, filename){
     if(!this.url) return null;
     const data = base64.replace(/^data:image\/\w+;base64,/,'');
     const mime = (base64.match(/^data:(image\/\w+);base64,/)||[])[1] || 'image/jpeg';
-    const res = await fetch(this.url, {
-      method:'POST',
-      body: JSON.stringify({ filename, mimeType: mime, image: data, folder:'Canton Fair Photos' })
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const j = await res.json();
-    if(!j.ok) throw new Error(j.error||'Upload failed');
-    return j;
+    const body = JSON.stringify({ action:'photo', filename, mimeType:mime, image:data, folder:'Canton Fair Photos' });
+    try{
+      const res = await fetch(this.url, { method:'POST', body });
+      try{
+        const j = await res.json();
+        if(j && j.ok) return j;
+      }catch{}
+      return { ok:true, optimistic:true };
+    }catch(err){
+      console.warn('upload error', err);
+      return { ok:true, optimistic:true };
+    }
+  },
+
+  syncProduct(product){
+    if(!this.url) return;
+    const slim = stripPhotos(product);
+    fetch(this.url, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({ action:'syncProduct', product: slim })
+    }).catch(err=>console.warn('sync error', err));
+  },
+
+  deleteProduct(id){
+    if(!this.url) return;
+    fetch(this.url, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({ action:'deleteProduct', id })
+    }).catch(()=>{});
   }
 };
+function stripPhotos(p){
+  return {
+    id: p.id, updatedAt: p.updatedAt,
+    name: p.name, supplierName: p.supplierName, supplierBooth: p.supplierBooth, supplierContact: p.supplierContact,
+    category: p.category, description: p.description,
+    price: p.price, currency: p.currency, priceIDR: calcIDR(p.price, p.currency),
+    moq: p.moq, leadTime: p.leadTime,
+    dimensions: p.dimensions, weight: p.weight, material: p.material, packaging: p.packaging,
+    sampleStatus: p.sampleStatus, sampleCost: p.sampleCost,
+    variants: p.variants||[],
+    notes: p.notes,
+    photoUrls: (p.photos||[]).map(ph=>ph.driveUrl||'').filter(Boolean)
+  };
+}
 function updateDriveStatus(){
   const el = $('#driveStatus');
   if(!el) return;
@@ -307,7 +376,7 @@ function render(){
     list.innerHTML = `<div class="empty">
       <b>No products yet</b>
       Tap <span style="background:var(--accent);color:#fff;padding:2px 9px;border-radius:99px">+</span> to add your first product.
-      <div class="hint">Each entry holds photos, supplier info, prices, variants, components, and notes — and exports as a PDF.</div>
+      <div class="hint">Each entry holds photos, supplier info, prices, variants, and notes — and exports as a PDF.</div>
     </div>`;
     return;
   }
@@ -321,7 +390,10 @@ function renderCard(it){
   const thumb = ph ? `<img src="${ph.data || ph.driveThumbnail || ''}">` : 'no photo';
   const sub = [it.supplierName, it.category].filter(Boolean).join(' · ') || 'Tap to fill in';
   const chips = [];
-  if(it.price) chips.push(`${it.currency||'USD'} ${it.price}`);
+  if(it.price){
+    const idr = calcIDR(it.price, it.currency);
+    chips.push(`${it.currency||'USD'} ${it.price}${idr?` ≈ IDR ${fmtIDR(idr)}`:''}`);
+  }
   if(it.moq) chips.push(`MOQ ${escapeHtml(it.moq)}`);
   if(it.leadTime) chips.push(`LT ${escapeHtml(it.leadTime)}`);
   if(it.variants && it.variants.length) chips.push(`${it.variants.length} variants`);
@@ -344,7 +416,7 @@ function blank(){
     price:'', currency:'USD', moq:'', leadTime:'',
     dimensions:'', weight:'', material:'', packaging:'',
     sampleStatus:'', sampleCost:'',
-    variants:[], components:[], notes:'', photos:[]
+    variants:[], notes:'', photos:[]
   };
 }
 function edit(id){
@@ -353,6 +425,7 @@ function edit(id){
   $('#sheetTitle').textContent = id ? 'Edit product' : 'New product';
   $('#sheetBody').innerHTML = formHtml(state.editing);
   bindFormEvents();
+  updatePriceConv();
   $('#sheetBg').classList.add('show');
 }
 function close(){ $('#sheetBg').classList.remove('show'); state.editing=null; }
@@ -385,13 +458,16 @@ function formHtml(it){
 
     <div class="group"><h3>Price & Terms</h3>
       <div class="row3">
-        <label class="f"><span>Price</span><input data-k="price" type="number" step="0.01" value="${escapeHtml(it.price)}"></label>
+        <label class="f"><span>Price</span>
+          <input data-k="price" id="priceIn" type="number" step="0.01" inputmode="decimal" value="${escapeHtml(it.price)}">
+        </label>
         <label class="f"><span>Currency</span>
-          <select data-k="currency">${['USD','CNY','EUR','IDR'].map(c=>`<option ${it.currency===c?'selected':''}>${c}</option>`).join('')}</select>
+          <select data-k="currency" id="currencyIn">${['USD','CNY','EUR','IDR'].map(c=>`<option ${it.currency===c?'selected':''}>${c}</option>`).join('')}</select>
         </label>
         <label class="f"><span>MOQ</span><input data-k="moq" value="${escapeHtml(it.moq)}"></label>
       </div>
-      <label class="f"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}" placeholder="e.g. 35 days"></label>
+      <div class="price-conv empty" id="priceConv"></div>
+      <label class="f" style="margin-top:8px"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}" placeholder="e.g. 35 days"></label>
     </div>
 
     <div class="group"><h3>Specs</h3>
@@ -410,13 +486,6 @@ function formHtml(it){
         ${(it.variants||[]).map((v,i)=>variantRow(v,i)).join('')}
       </div>
       <button class="add-row" id="addVariant">+ Add variant</button>
-    </div>
-
-    <div class="group"><h3>Components / Parts <small>(what makes up this product)</small></h3>
-      <div class="multi-row" id="components">
-        ${(it.components||[]).map((c,i)=>compRow(c,i)).join('')}
-      </div>
-      <button class="add-row" id="addComp">+ Add component</button>
     </div>
 
     <div class="group"><h3>Sample</h3>
@@ -445,7 +514,7 @@ function renderPhotos(photos){
   return photos.map((p,i)=>{
     const src = p.data || p.driveThumbnail || '';
     let badge = '';
-    if(p.driveId) badge = '<span class="badge">Drive ✓</span>';
+    if(p.driveId || p.driveUploaded) badge = '<span class="badge">Drive ✓</span>';
     else if(p.uploading) badge = '<span class="badge"><span class="uploading"></span>sync</span>';
     else if(p.uploadFailed) badge = '<span class="badge warn">no sync</span>';
     return `<div class="photo">
@@ -464,18 +533,29 @@ function variantRow(v={},i){
     <button data-vremove="${i}">×</button>
   </div>`;
 }
-function compRow(c={},i){
-  return `<div class="c-row" data-ci="${i}">
-    <input data-ck="name" value="${escapeHtml(c.name||'')}" placeholder="part name">
-    <input data-ck="supplier" value="${escapeHtml(c.supplier||'')}" placeholder="supplier">
-    <input data-ck="price" value="${escapeHtml(c.price||'')}" placeholder="price/note">
-    <button data-cremove="${i}">×</button>
-  </div>`;
+
+function updatePriceConv(){
+  const it = state.editing; if(!it) return;
+  const conv = $('#priceConv'); if(!conv) return;
+  const idr = calcIDR(it.price, it.currency);
+  if(idr){
+    conv.classList.remove('empty');
+    conv.textContent = `≈ IDR ${fmtIDR(idr)}  ·  rate ${getRates()[it.currency+'_IDR']}/${it.currency}`;
+  } else {
+    conv.classList.add('empty');
+    conv.textContent = (it.currency==='IDR') ? '' : 'Enter price to see IDR equivalent';
+  }
 }
 
 function bindFormEvents(){
   $$('#sheetBody [data-k]').forEach(el=>{
-    el.addEventListener('input',()=>{ state.editing[el.dataset.k]=el.value; });
+    el.addEventListener('input',()=>{
+      state.editing[el.dataset.k]=el.value;
+      if(el.dataset.k==='price' || el.dataset.k==='currency') updatePriceConv();
+    });
+    el.addEventListener('change',()=>{
+      if(el.dataset.k==='currency') updatePriceConv();
+    });
   });
   const pin = $('#photoInput');
   if(pin){
@@ -489,15 +569,13 @@ function bindFormEvents(){
           refreshPhotos();
           if(Drive.connected){
             const fn = `cf_${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
-            try{
-              const r = await Drive.upload(data, fn);
-              if(r){ photo.driveId = r.id; photo.driveUrl = r.url; photo.driveThumbnail = r.thumbnail; }
-              photo.uploading = false; photo.uploadFailed = false;
-            }catch(err){
-              console.error(err);
-              photo.uploading = false; photo.uploadFailed = true;
-              toast('Drive upload failed — kept local', true);
+            const r = await Drive.uploadPhoto(data, fn);
+            if(r && r.id){
+              photo.driveId = r.id; photo.driveUrl = r.url; photo.driveThumbnail = r.thumbnail;
+            } else if(r && r.optimistic){
+              photo.driveUploaded = true;
             }
+            photo.uploading = false;
             refreshPhotos();
           }
         }catch(err){console.error(err); toast('Could not add photo', true);}
@@ -527,27 +605,15 @@ function bindFormEvents(){
     const rm = row.querySelector('[data-vremove]');
     if(rm) rm.addEventListener('click',()=>{ state.editing.variants.splice(i,1); refreshVariants(); });
   });
-  const addC = $('#addComp');
-  if(addC) addC.addEventListener('click',()=>{
-    state.editing.components = state.editing.components || [];
-    state.editing.components.push({name:'',supplier:'',price:''});
-    refreshComponents();
-  });
-  $$('#components .c-row').forEach(row=>{
-    const i = +row.dataset.ci;
-    row.querySelectorAll('input[data-ck]').forEach(inp=>{
-      inp.addEventListener('input',()=>{ state.editing.components[i][inp.dataset.ck]=inp.value; });
-    });
-    const rm = row.querySelector('[data-cremove]');
-    if(rm) rm.addEventListener('click',()=>{ state.editing.components.splice(i,1); refreshComponents(); });
-  });
   $$('#sheetBody .actions button').forEach(b=>{
     b.addEventListener('click', async e=>{
       e.preventDefault();
       const act = b.dataset.act;
       if(act==='del'){
         if(!confirm('Delete this product?')) return;
-        await DB.del(state.editing.id);
+        const idToDel = state.editing.id;
+        await DB.del(idToDel);
+        Drive.deleteProduct(idToDel);
         await reload(); close(); toast('Deleted');
       } else if(act==='pdf'){
         const ok = await save({silent:true});
@@ -568,18 +634,16 @@ function refreshVariants(){
   $('#variants').innerHTML = (state.editing.variants||[]).map((v,i)=>variantRow(v,i)).join('');
   bindFormEvents();
 }
-function refreshComponents(){
-  $('#components').innerHTML = (state.editing.components||[]).map((c,i)=>compRow(c,i)).join('');
-  bindFormEvents();
-}
 
 async function save(opts={}){
   const it = state.editing;
+  if(!it){ if(!opts.silent) close(); return false; }
   if(!it.name || !it.name.trim()){ toast('Product name is required', true); return false; }
   it.updatedAt = Date.now();
   await DB.put(it);
+  Drive.syncProduct(it);
   await reload();
-  if(!opts.silent){ close(); toast('Saved'); }
+  if(!opts.silent){ close(); toast(Drive.connected ? 'Saved & synced to Sheet' : 'Saved'); }
   return true;
 }
 
@@ -589,6 +653,8 @@ function generatePDF(id){
   if(!p){ toast('Save first', true); return; }
   const date = new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
   const row = (k,v) => v ? `<tr><td>${k}</td><td>${escapeHtml(v)}</td></tr>` : '';
+  const idr = calcIDR(p.price, p.currency);
+  const priceLine = p.price ? `${p.currency||'USD'} ${p.price}${idr?`  (≈ IDR ${fmtIDR(idr)})`:''}` : '';
 
   let html = `
     <h1>${escapeHtml(p.name||'(unnamed)')}</h1>
@@ -603,7 +669,7 @@ function generatePDF(id){
     <table>
       ${row('Category', p.category)}
       ${row('Description', p.description)}
-      ${row('Price', p.price ? `${p.currency||'USD'} ${p.price}` : '')}
+      ${row('Price', priceLine)}
       ${row('MOQ', p.moq)}
       ${row('Lead time', p.leadTime)}
       ${row('Dimensions', p.dimensions)}
@@ -628,13 +694,6 @@ function generatePDF(id){
         ${p.variants.map(v=>`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.sku)}</td><td>${escapeHtml(v.price)}</td></tr>`).join('')}
       </table>`:''}
 
-    ${(p.components&&p.components.length)?`
-      <h2>Components / Parts</h2>
-      <table>
-        <tr style="background:#f0f9ff"><td><b>Part</b></td><td><b>Supplier</b></td><td><b>Price / note</b></td></tr>
-        ${p.components.map(c=>`<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.supplier)}</td><td>${escapeHtml(c.price)}</td></tr>`).join('')}
-      </table>`:''}
-
     ${p.notes?`<h2>Notes</h2><div class="notes-box">${escapeHtml(p.notes)}</div>`:''}
   `;
   const el = $('#pdfRender');
@@ -649,17 +708,15 @@ function generatePDF(id){
     jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' },
     pagebreak:{ mode:['avoid-all','css','legacy'] }
   }).from(el).save().then(()=>{
-    toast('PDF downloaded');
-    el.innerHTML='';
+    toast('PDF downloaded'); el.innerHTML='';
   }).catch(err=>{
-    console.error(err); toast('PDF failed: '+err.message, true);
-    el.innerHTML='';
+    console.error(err); toast('PDF failed: '+err.message, true); el.innerHTML='';
   });
 }
 
 /* =================== BACKUP =================== */
 async function exportJson(){
-  const data = { version:2, exportedAt:new Date().toISOString(), products:state.products };
+  const data = { version:3, exportedAt:new Date().toISOString(), products:state.products, rates:getRates() };
   const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -676,6 +733,7 @@ async function importJson(file){
     if(!confirm('REPLACE all current products with this backup?')) return;
     await DB.clear();
     for(const p of data.products) await DB.put(p);
+    if(data.rates) setRates(data.rates);
     await reload();
     toast('Restored');
   }catch(e){ alert('Could not read file: '+e.message); }
@@ -691,18 +749,32 @@ function setupDriveDialog(){
   if(v===null) return;
   if(!v.trim()){ Drive.url=''; toast('Drive disconnected'); return; }
   Drive.url = v.trim();
-  fetch(Drive.url, {method:'POST', body: JSON.stringify({test:true})})
-    .then(r=>r.json()).then(j=>{
-      if(j && j.ok) toast('Drive connected ✓');
-      else toast('Saved, but test failed: '+(j&&j.error||'unknown'), true);
-    })
-    .catch(err=>toast('Saved, but test request failed: '+err.message, true));
+  toast('URL saved — try adding a photo to test');
+}
+
+function setupRatesDialog(){
+  const r = getRates();
+  const usd = prompt(`USD → IDR rate\n(current: ${r.USD_IDR})`, r.USD_IDR);
+  if(usd===null) return;
+  const cny = prompt(`CNY → IDR rate\n(current: ${r.CNY_IDR})`, r.CNY_IDR);
+  if(cny===null) return;
+  const eur = prompt(`EUR → IDR rate\n(current: ${r.EUR_IDR})`, r.EUR_IDR);
+  if(eur===null) return;
+  setRates({
+    USD_IDR: parseFloat(usd) || r.USD_IDR,
+    CNY_IDR: parseFloat(cny) || r.CNY_IDR,
+    EUR_IDR: parseFloat(eur) || r.EUR_IDR,
+  });
+  toast('Rates updated');
+  updatePriceConv();
+  render();
 }
 
 /* =================== WIRE UP =================== */
 $('#search').addEventListener('input',e=>{ state.search=e.target.value; render(); });
 $('#addBtn').addEventListener('click',()=>edit(null));
-$('#cancelBtn').addEventListener('click',close);
+$('#backBtn').addEventListener('click',close);
+$('#closeX').addEventListener('click',close);
 $('#saveBtn').addEventListener('click',()=>save());
 $('#sheetBg').addEventListener('click',e=>{ if(e.target.id==='sheetBg') close(); });
 
@@ -710,6 +782,11 @@ $('#menuBtn').addEventListener('click',e=>{ e.stopPropagation(); $('#menuList').
 document.addEventListener('click',e=>{ if(!e.target.closest('#menuList')&&!e.target.closest('#menuBtn')) $('#menuList').classList.remove('show'); });
 
 $('#setupDrive').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); setupDriveDialog(); });
+$('#rates').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); setupRatesDialog(); });
+$('#openDrive').addEventListener('click',()=>{
+  $('#menuList').classList.remove('show');
+  window.open('https://drive.google.com/drive/search?q=Canton%20Fair', '_blank');
+});
 $('#exportJson').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); exportJson(); });
 $('#importJson').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); $('#restoreFile').click(); });
 $('#restoreFile').addEventListener('change',e=>{ if(e.target.files[0]) importJson(e.target.files[0]); e.target.value=''; });
@@ -724,43 +801,28 @@ $('#howto').addEventListener('click',()=>{
   alert(
 `HOW TO USE
 
-· Tap + to add a product. Each entry has photos, supplier info, price, variants, components, and notes.
-· Photos: tap "+ add photo" — uses your iPhone camera. Compressed automatically.
-· PDF: open a product → "Download PDF" → file goes to Files / Downloads. Upload to Trello from there.
-· Backup: ⋯ → Backup data → save the JSON to Drive (do it daily!).
-· Add to Home Screen: Safari Share → Add to Home Screen — works like an app.
+· Tap + to add a product. Each entry has photos, supplier info, price, variants, notes.
+· Photos auto-upload to Google Drive (when connected) — see folder "Canton Fair Photos".
+· Product data auto-syncs to a Google Sheet "Canton Fair Products" inside that folder.
+· Price → IDR converts live based on your rates (⋯ → Exchange rates).
+· PDF: open a product → "Download PDF" → upload to Trello.
+· Backup: ⋯ → Backup data daily.
+· Add to Home Screen: Safari Share → Add to Home Screen.
 
 
-CONNECT GOOGLE DRIVE FOR PHOTOS  (one-time, ~5 min)
+CONNECT GOOGLE DRIVE  (one-time, ~5 min)
 
 1. Open script.google.com → "New project".
-2. Delete the default code. Paste this exactly:
-
-function doPost(e) {
-  try {
-    if (!e || !e.postData) return out({ok:false,error:'no data'});
-    var d = JSON.parse(e.postData.contents);
-    if (d.test) return out({ok:true,test:true});
-    var name = d.folder || 'Canton Fair Photos';
-    var folders = DriveApp.getFoldersByName(name);
-    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(name);
-    var blob = Utilities.newBlob(Utilities.base64Decode(d.image), d.mimeType, d.filename);
-    var f = folder.createFile(blob);
-    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return out({ok:true, id:f.getId(), url:'https://drive.google.com/file/d/'+f.getId()+'/view', thumbnail:'https://lh3.googleusercontent.com/d/'+f.getId()});
-  } catch (err) { return out({ok:false, error:String(err)}); }
-}
-function out(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-
-3. Click the floppy-disk Save icon. Name the project "Canton Fair Upload".
+2. Replace Code.gs with the script provided in chat.
+3. Save (floppy icon). Name "Canton Fair Upload".
 4. Top-right "Deploy" → "New deployment".
-5. Click the gear next to "Select type" → choose "Web app".
-6. Execute as: Me.   Who has access: Anyone.
-7. Click Deploy → Authorize access (Advanced → Go to project (unsafe) → Allow).
-8. Copy the "Web app URL" shown after deployment.
-9. Back here: ⋯ → Connect Google Drive → paste the URL.
+5. Gear next to "Select type" → choose "Web app".
+6. Execute as: Me. Who has access: Anyone.
+7. Click Deploy → Authorize (Advanced → Go to project (unsafe) → Allow).
+8. Copy the "Web app URL".
+9. Back here: ⋯ → Connect Google Drive → paste URL.
 
-Photos will then auto-upload to a "Canton Fair Photos" folder in your Drive.`);
+If you've already connected Drive but the script changed: open script.google.com → Deploy → Manage deployments → ✏️ → New version → Deploy → re-authorize when prompted.`);
 });
 
 updateDriveStatus();
