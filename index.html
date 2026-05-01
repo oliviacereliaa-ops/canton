@@ -686,7 +686,7 @@ async function save(opts={}){
   return true;
 }
 
-/* =================== PDF =================== */
+/* =================== PDF (iframe-isolated) =================== */
 function generatePDF(id){
   const p = state.products.find(x=>x.id===id);
   if(!p){ toast('Save first', true); return; }
@@ -694,14 +694,17 @@ function generatePDF(id){
   const row = (k,v) => v ? `<tr><td>${k}</td><td>${escapeHtml(v)}</td></tr>` : '';
   const idr = calcIDR(p.price, p.currency);
   const priceLine = p.price ? `${p.currency||'USD'} ${p.price}${idr?`  (≈ IDR ${fmtIDR(idr)})`:''}` : '';
+  const dims = [p.itemW,p.itemL,p.itemH].filter(x=>x!==''&&x!=null).join(' × ');
+  const pkgDims = [p.pkgW,p.pkgL,p.pkgH].filter(x=>x!==''&&x!=null).join(' × ');
+  const safeName = (p.name||'product').replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'_').slice(0,60) || 'product';
 
-  let html = `
+  const inner = `
     <h1>${escapeHtml(p.name||'(unnamed)')}</h1>
-    <div class="sub">Canton Fair · ${date}${p.supplierName?` · ${escapeHtml(p.supplierName)}`:''}</div>
+    <div class="sub">Canton Fair &middot; ${date}${p.supplierName?` &middot; ${escapeHtml(p.supplierName)}`:''}</div>
 
     ${(p.photos&&p.photos.length)?`
       <h2>Photos</h2>
-      <div class="ph-grid">${p.photos.map(ph=>`<img src="${ph.data||ph.driveThumbnail||''}">`).join('')}</div>
+      <div class="ph-grid">${p.photos.map(ph=>`<img src="${ph.data||ph.driveThumbnail||''}" crossorigin="anonymous">`).join('')}</div>
     `:''}
 
     <h2>Product</h2>
@@ -724,7 +727,6 @@ function generatePDF(id){
       ${row('Nearest port', p.nearestPort)}
     </table>
 
-    ${(()=>{const dims=[p.itemW,p.itemL,p.itemH].filter(x=>x!==''&&x!=null).join(' × ');const pkgDims=[p.pkgW,p.pkgL,p.pkgH].filter(x=>x!==''&&x!=null).join(' × ');return `
     <h2>Item Specs</h2>
     <table>
       ${row('Dimensions (cm)', dims)}
@@ -738,32 +740,66 @@ function generatePDF(id){
       ${row('Pkg dimensions (cm)', pkgDims)}
       ${row('Pkg material', p.pkgMaterial)}
       ${row('Pkg notes', p.pkgNotes)}
-    </table>`;})()}
+    </table>
 
     ${(p.variants&&p.variants.length)?`
       <h2>Variants</h2>
       <table>
-        <tr style="background:#f0f9ff"><td><b>Name</b></td><td><b>SKU</b></td><td><b>Price ±</b></td></tr>
+        <tr style="background:#f0f9ff"><td><b>Name</b></td><td><b>SKU</b></td><td><b>Price &plusmn;</b></td></tr>
         ${p.variants.map(v=>`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.sku)}</td><td>${escapeHtml(v.price)}</td></tr>`).join('')}
       </table>`:''}
 
     ${p.notes?`<h2>Notes</h2><div class="notes-box">${escapeHtml(p.notes)}</div>`:''}
   `;
-  const el = $('#pdfRender');
-  el.innerHTML = html;
-  const origTitle = document.title;
-  const safeName = (p.name||'product').replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'_').slice(0,60) || 'product';
+
+  const docHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>canton_${safeName}</title>
+<style>
+  @page{size:A4;margin:14mm}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#fff;color:#0f2438;
+    font:13px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif}
+  body{padding:18mm 14mm}
+  h1{font-size:22px;margin:0 0 4px;color:#0369a1}
+  .sub{color:#5d7286;font-size:12px;margin-bottom:14px;border-bottom:2px solid #38bdf8;padding-bottom:8px}
+  h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:#0369a1;
+    margin:14px 0 5px;padding-bottom:3px;border-bottom:1px solid #d9e6f0;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:5px 0}
+  table td{padding:5px 7px;vertical-align:top;border-bottom:1px solid #d9e6f0}
+  table td:first-child{width:30%;color:#5d7286;font-weight:500}
+  .ph-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px;page-break-inside:avoid}
+  .ph-grid img{width:100%;border-radius:5px;border:1px solid #d9e6f0;display:block}
+  .notes-box{background:#f7fbfd;border:1px solid #d9e6f0;border-radius:5px;
+    padding:9px 11px;font-size:12.5px;white-space:pre-wrap}
+</style>
+</head><body>${inner}</body></html>`;
+
+  // remove any existing print iframe
+  const old = document.getElementById('printIframe');
+  if(old) old.remove();
+
+  // create on-screen iframe (visible but covered by overlay), iOS needs it in viewport
+  const iframe = document.createElement('iframe');
+  iframe.id = 'printIframe';
+  iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:0;background:#fff;z-index:99999;';
+  document.body.appendChild(iframe);
+
+  const idoc = iframe.contentDocument || iframe.contentWindow.document;
+  idoc.open();
+  idoc.write(docHtml);
+  idoc.close();
+
+  // Force layout in iframe, then print synchronously (iOS user-gesture friendly)
+  void iframe.contentDocument.body.offsetHeight;
   document.title = `canton_${safeName}`;
-  document.body.classList.add('printing');
-  // Force layout flush, then print SYNCHRONOUSLY so iOS Safari accepts it as user-initiated
-  void el.offsetHeight;
-  window.print();
-  // restore on next tick (after print dialog has captured what it needs)
-  setTimeout(()=>{
-    document.body.classList.remove('printing');
-    document.title = origTitle;
-    el.innerHTML = '';
-  }, 800);
+  try{
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  }catch(e){
+    console.error(e);
+    toast('Print failed: '+(e.message||'unknown'), true);
+  }
+  // cleanup after dialog has had time to capture
+  setTimeout(()=>{ if(iframe.parentNode) iframe.remove(); }, 2500);
 }
 
 /* =================== BACKUP =================== */
