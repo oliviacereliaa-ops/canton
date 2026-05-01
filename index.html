@@ -145,6 +145,12 @@
 
   .pdf-render{position:fixed;left:-10000px;top:0;width:760px;background:#fff;color:#0f2438;
     font:13px/1.5 -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;padding:30px}
+  .pdf-overlay{position:fixed;inset:0;background:rgba(255,255,255,.96);z-index:10000;
+    display:none;align-items:center;justify-content:center;flex-direction:column;
+    color:var(--accent-d);font-size:17px;font-weight:600;gap:14px}
+  .pdf-overlay.show{display:flex}
+  .pdf-overlay .spin{width:32px;height:32px;border-radius:50%;
+    border:3px solid var(--chip);border-top-color:var(--accent);animation:spin .8s linear infinite}
   .pdf-render h1{font-size:24px;margin:0 0 6px;color:var(--accent-d)}
   .pdf-render .sub{color:var(--muted);font-size:13px;margin-bottom:18px;border-bottom:2px solid var(--accent2);padding-bottom:10px}
   .pdf-render h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-d);
@@ -203,6 +209,7 @@
 
 <input type="file" id="restoreFile" accept="application/json" style="display:none">
 <div class="pdf-render" id="pdfRender"></div>
+<div class="pdf-overlay" id="pdfOverlay"><div class="spin"></div><div>Generating PDF…</div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -737,21 +744,34 @@ function generatePDF(id){
     ${p.notes?`<h2>Notes</h2><div class="notes-box">${escapeHtml(p.notes)}</div>`:''}
   `;
   const el = $('#pdfRender');
+  const ov = $('#pdfOverlay');
   el.innerHTML = html;
+  // bring on-screen so iOS Safari renders + html2canvas captures it; overlay hides it visually
+  el.style.left = '0';
+  el.style.zIndex = '9999';
+  ov.classList.add('show');
   const safeName = (p.name||'product').replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'_').slice(0,60) || 'product';
-  toast('Generating PDF…');
-  html2pdf().set({
-    margin:[10,10,10,10],
-    filename: `canton_${safeName}.pdf`,
-    image:{ type:'jpeg', quality:.92 },
-    html2canvas:{ scale:2, useCORS:true, allowTaint:true, backgroundColor:'#ffffff' },
-    jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' },
-    pagebreak:{ mode:['avoid-all','css','legacy'] }
-  }).from(el).save().then(()=>{
-    toast('PDF downloaded'); el.innerHTML='';
-  }).catch(err=>{
-    console.error(err); toast('PDF failed: '+err.message, true); el.innerHTML='';
-  });
+  const cleanup = () => {
+    el.style.left = '-10000px';
+    el.style.zIndex = '';
+    el.innerHTML = '';
+    ov.classList.remove('show');
+  };
+  // small delay to let layout settle before capture
+  setTimeout(()=>{
+    html2pdf().set({
+      margin:[10,10,10,10],
+      filename: `canton_${safeName}.pdf`,
+      image:{ type:'jpeg', quality:.92 },
+      html2canvas:{ scale:2, useCORS:true, allowTaint:true, backgroundColor:'#ffffff', windowWidth:820, scrollX:0, scrollY:-window.scrollY },
+      jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' },
+      pagebreak:{ mode:['avoid-all','css','legacy'] }
+    }).from(el).save().then(()=>{
+      cleanup(); toast('PDF downloaded');
+    }).catch(err=>{
+      console.error(err); cleanup(); toast('PDF failed: '+(err.message||'unknown'), true);
+    });
+  }, 150);
 }
 
 /* =================== BACKUP =================== */
