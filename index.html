@@ -333,10 +333,14 @@ function stripPhotos(p){
   return {
     id: p.id, updatedAt: p.updatedAt,
     name: p.name, supplierName: p.supplierName, supplierBooth: p.supplierBooth, supplierContact: p.supplierContact,
+    factoryLoc: p.factoryLoc, nearestPort: p.nearestPort,
     category: p.category, description: p.description,
     price: p.price, currency: p.currency, priceIDR: calcIDR(p.price, p.currency),
     moq: p.moq, leadTime: p.leadTime,
-    dimensions: p.dimensions, weight: p.weight, material: p.material, packaging: p.packaging,
+    itemW: p.itemW, itemL: p.itemL, itemH: p.itemH,
+    weightG: p.weightG, gsm: p.gsm, material: p.material,
+    pkgW: p.pkgW, pkgL: p.pkgL, pkgH: p.pkgH,
+    pkgMaterial: p.pkgMaterial, pkgNotes: p.pkgNotes,
     sampleStatus: p.sampleStatus, sampleCost: p.sampleCost,
     variants: p.variants||[],
     notes: p.notes,
@@ -412,9 +416,11 @@ function blank(){
   return {
     id:uid(), createdAt:Date.now(), updatedAt:Date.now(),
     name:'', supplierName:'', supplierBooth:'', supplierContact:'',
+    factoryLoc:'', nearestPort:'',
     category:'', description:'',
     price:'', currency:'USD', moq:'', leadTime:'',
-    dimensions:'', weight:'', material:'', packaging:'',
+    itemW:'', itemL:'', itemH:'', weightG:'', gsm:'', material:'',
+    pkgW:'', pkgL:'', pkgH:'', pkgMaterial:'', pkgNotes:'',
     sampleStatus:'', sampleCost:'',
     variants:[], notes:'', photos:[]
   };
@@ -451,6 +457,10 @@ function formHtml(it){
       </div>
       <label class="f"><span>Supplier contact</span><input data-k="supplierContact" value="${escapeHtml(it.supplierContact)}" placeholder="person · phone · WeChat · email"></label>
       <div class="row2">
+        <label class="f"><span>Factory location</span><input data-k="factoryLoc" value="${escapeHtml(it.factoryLoc)}" placeholder="e.g. Foshan, Guangdong"></label>
+        <label class="f"><span>Nearest port</span><input data-k="nearestPort" value="${escapeHtml(it.nearestPort)}" placeholder="e.g. Shenzhen, Ningbo"></label>
+      </div>
+      <div class="row2">
         <label class="f"><span>Category</span><input data-k="category" value="${escapeHtml(it.category)}" placeholder="e.g. sofa, lamp"></label>
         <label class="f"><span>Short description</span><input data-k="description" value="${escapeHtml(it.description)}"></label>
       </div>
@@ -470,15 +480,31 @@ function formHtml(it){
       <label class="f" style="margin-top:8px"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}" placeholder="e.g. 35 days"></label>
     </div>
 
-    <div class="group"><h3>Specs</h3>
+    <div class="group"><h3>Item Specs</h3>
+      <label class="f"><span>Dimensions (cm) — W × L × H</span>
+        <div class="row3">
+          <input data-k="itemW" type="number" inputmode="decimal" placeholder="Width" value="${escapeHtml(it.itemW)}">
+          <input data-k="itemL" type="number" inputmode="decimal" placeholder="Length" value="${escapeHtml(it.itemL)}">
+          <input data-k="itemH" type="number" inputmode="decimal" placeholder="Height" value="${escapeHtml(it.itemH)}">
+        </div>
+      </label>
       <div class="row2">
-        <label class="f"><span>Dimensions</span><input data-k="dimensions" value="${escapeHtml(it.dimensions)}"></label>
-        <label class="f"><span>Weight</span><input data-k="weight" value="${escapeHtml(it.weight)}"></label>
+        <label class="f"><span>Weight (g)</span><input data-k="weightG" type="number" inputmode="decimal" value="${escapeHtml(it.weightG)}"></label>
+        <label class="f"><span>GSM</span><input data-k="gsm" type="number" inputmode="decimal" value="${escapeHtml(it.gsm)}" placeholder="for fabrics"></label>
       </div>
-      <div class="row2">
-        <label class="f"><span>Material</span><input data-k="material" value="${escapeHtml(it.material)}"></label>
-        <label class="f"><span>Packaging</span><input data-k="packaging" value="${escapeHtml(it.packaging)}"></label>
-      </div>
+      <label class="f"><span>Material</span><input data-k="material" value="${escapeHtml(it.material)}" placeholder="e.g. velvet, oak, ABS"></label>
+    </div>
+
+    <div class="group"><h3>Packaging</h3>
+      <label class="f"><span>Packaging dimensions (cm) — W × L × H</span>
+        <div class="row3">
+          <input data-k="pkgW" type="number" inputmode="decimal" placeholder="Width" value="${escapeHtml(it.pkgW)}">
+          <input data-k="pkgL" type="number" inputmode="decimal" placeholder="Length" value="${escapeHtml(it.pkgL)}">
+          <input data-k="pkgH" type="number" inputmode="decimal" placeholder="Height" value="${escapeHtml(it.pkgH)}">
+        </div>
+      </label>
+      <label class="f"><span>Packaging material</span><input data-k="pkgMaterial" value="${escapeHtml(it.pkgMaterial)}" placeholder="e.g. carton box, bubble wrap, foam"></label>
+      <label class="f"><span>Packaging notes</span><textarea data-k="pkgNotes" rows="2">${escapeHtml(it.pkgNotes)}</textarea></label>
     </div>
 
     <div class="group"><h3>Variants <small>(color/size/SKU)</small></h3>
@@ -504,7 +530,7 @@ function formHtml(it){
     </div>
 
     <div class="actions">
-      ${isExisting ? `<button class="btn primary" data-act="pdf">📄 Download PDF</button>` : ''}
+      <button class="btn primary" data-act="pdf">📄 Save & Download PDF</button>
       ${isExisting ? `<button class="btn danger" data-act="del">Delete</button>` : ''}
     </div>
   `;
@@ -672,10 +698,6 @@ function generatePDF(id){
       ${row('Price', priceLine)}
       ${row('MOQ', p.moq)}
       ${row('Lead time', p.leadTime)}
-      ${row('Dimensions', p.dimensions)}
-      ${row('Weight', p.weight)}
-      ${row('Material', p.material)}
-      ${row('Packaging', p.packaging)}
       ${row('Sample status', p.sampleStatus)}
       ${row('Sample cost', p.sampleCost)}
     </table>
@@ -685,7 +707,25 @@ function generatePDF(id){
       ${row('Company', p.supplierName)}
       ${row('Booth', p.supplierBooth)}
       ${row('Contact', p.supplierContact)}
+      ${row('Factory location', p.factoryLoc)}
+      ${row('Nearest port', p.nearestPort)}
     </table>
+
+    ${(()=>{const dims=[p.itemW,p.itemL,p.itemH].filter(x=>x!==''&&x!=null).join(' × ');const pkgDims=[p.pkgW,p.pkgL,p.pkgH].filter(x=>x!==''&&x!=null).join(' × ');return `
+    <h2>Item Specs</h2>
+    <table>
+      ${row('Dimensions (cm)', dims)}
+      ${row('Weight (g)', p.weightG)}
+      ${row('GSM', p.gsm)}
+      ${row('Material', p.material)}
+    </table>
+
+    <h2>Packaging</h2>
+    <table>
+      ${row('Pkg dimensions (cm)', pkgDims)}
+      ${row('Pkg material', p.pkgMaterial)}
+      ${row('Pkg notes', p.pkgNotes)}
+    </table>`;})()}
 
     ${(p.variants&&p.variants.length)?`
       <h2>Variants</h2>
