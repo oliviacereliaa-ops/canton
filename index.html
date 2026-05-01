@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Canton Fair">
+<meta name="theme-color" content="#0b3d2e">
+<title>Canton Fair Tracker</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{
+    --bg:#f5f6f8;--card:#fff;--ink:#13231c;--muted:#6b7770;
+    --line:#e3e6e2;--accent:#0b3d2e;--accent2:#1e6b48;
+    --warn:#c2410c;--ok:#16a34a;--chip:#eef3ef;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+  body{padding-bottom:env(safe-area-inset-bottom);min-height:100vh}
+  header{position:sticky;top:0;z-index:10;background:var(--accent);color:#fff;
+    padding:env(safe-area-inset-top) 14px 0;
+    box-shadow:0 1px 0 rgba(0,0,0,.06)}
+  .brand{display:flex;align-items:center;justify-content:space-between;height:44px}
+  .brand h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px}
+  .brand .menu{background:transparent;border:0;color:#fff;font-size:20px;padding:6px 10px;cursor:pointer}
+  nav.tabs{display:flex;gap:0;border-top:1px solid rgba(255,255,255,.08)}
+  nav.tabs button{flex:1;background:transparent;border:0;color:#cfe0d6;
+    padding:10px 6px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent}
+  nav.tabs button.active{color:#fff;border-bottom-color:#fff}
+  nav.tabs .count{display:inline-block;background:rgba(255,255,255,.18);border-radius:10px;
+    padding:1px 7px;font-size:11px;margin-left:4px}
+
+  main{padding:10px 12px 100px;max-width:780px;margin:0 auto}
+  .toolbar{display:flex;gap:8px;align-items:center;margin:6px 0 10px}
+  .toolbar input[type=search]{flex:1;padding:9px 12px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;font-size:14px;outline:none}
+  .toolbar select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13px}
+
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+  .item .thumb{width:54px;height:54px;border-radius:10px;background:#eef0ec;overflow:hidden;
+    flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#9aa39d;font-size:11px}
+  .item .thumb img{width:100%;height:100%;object-fit:cover}
+  .item .meta{flex:1;min-width:0}
+  .item .meta .t{font-weight:600;font-size:15px;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .meta .s{color:var(--muted);font-size:12px;line-height:1.35}
+  .item .meta .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .chip{display:inline-block;background:var(--chip);color:#324a3a;font-size:11px;
+    padding:2px 8px;border-radius:99px}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
+  .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+
+  .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));
+    width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;
+    border:0;font-size:28px;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.18);
+    z-index:8;cursor:pointer}
+
+  /* sheet (modal) */
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;
+    display:none;align-items:flex-end;justify-content:center}
+  .sheet-bg.show{display:flex}
+  .sheet{background:#fff;width:100%;max-width:780px;max-height:92vh;border-radius:18px 18px 0 0;
+    overflow:hidden;display:flex;flex-direction:column}
+  .sheet-h{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:2}
+  .sheet-h h2{margin:0;font-size:16px}
+  .sheet-h button{background:transparent;border:0;font-size:14px;padding:6px 10px;cursor:pointer;color:var(--accent)}
+  .sheet-h button.danger{color:var(--warn)}
+  .sheet-body{overflow:auto;padding:14px;flex:1}
+
+  label.f{display:block;margin:0 0 12px}
+  label.f>span{display:block;font-size:12px;font-weight:600;color:#3a4a42;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+  label.f input,label.f select,label.f textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    font-size:15px;background:#fff;font-family:inherit;outline:none}
+  label.f textarea{min-height:70px;resize:vertical}
+  label.f input:focus,label.f select:focus,label.f textarea:focus{border-color:var(--accent2)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:480px){.row3{grid-template-columns:1fr 1fr}}
+
+  .group{background:#fafbfa;border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}
+  .group>h3{margin:0 0 10px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.6px}
+
+  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
+  .photo{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#eef0ec}
+  .photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .photo button{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;
+    border:0;width:22px;height:22px;border-radius:50%;font-size:14px;line-height:1;cursor:pointer}
+  .add-photo{aspect-ratio:1;border:2px dashed #c8d0c9;border-radius:10px;background:#fff;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--muted);
+    font-size:11px;cursor:pointer}
+  .add-photo span{font-size:24px;color:var(--accent2);font-weight:300;line-height:1}
+
+  .variants .v-row{display:grid;grid-template-columns:1fr 1fr 1fr 28px;gap:6px;margin-bottom:6px;align-items:center}
+  .variants .v-row input{padding:8px;font-size:14px;border:1px solid var(--line);border-radius:8px}
+  .variants .v-row button{background:transparent;border:0;color:var(--warn);font-size:18px;cursor:pointer}
+  .add-row{background:#eef3ef;border:0;color:var(--accent);padding:8px 12px;border-radius:8px;
+    font-size:13px;font-weight:500;cursor:pointer}
+
+  .pills{display:flex;flex-wrap:wrap;gap:6px}
+  .pill{display:inline-flex;align-items:center;gap:4px;background:var(--chip);color:#324a3a;
+    font-size:13px;padding:5px 10px;border-radius:99px;cursor:pointer}
+  .pill.on{background:var(--accent);color:#fff}
+  .pill input{display:none}
+
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .btn{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:#fff;
+    font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.danger{color:var(--warn);border-color:#f1d4c2}
+  .btn:active{transform:scale(.98)}
+
+  .menu-list{position:fixed;top:50px;right:8px;background:#fff;border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;min-width:220px;display:none;overflow:hidden}
+  .menu-list.show{display:block}
+  .menu-list button{display:block;width:100%;text-align:left;padding:11px 14px;background:transparent;
+    border:0;font-size:14px;cursor:pointer;border-bottom:1px solid var(--line);font-family:inherit}
+  .menu-list button:last-child{border-bottom:0}
+  .menu-list button.danger{color:var(--warn)}
+  .menu-list button:hover{background:#f5f6f8}
+
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#13231c;
+    color:#fff;padding:10px 16px;border-radius:99px;font-size:13px;z-index:50;opacity:0;
+    transition:opacity .2s}
+  .toast.show{opacity:1}
+
+  /* ---- Print / PDF report styles ---- */
+  @media print{
+    @page{size:A4;margin:14mm}
+    body{background:#fff}
+    header,nav.tabs,.toolbar,.fab,.sheet-bg,main>.list,main>.empty,.menu-list,.toast{display:none !important}
+    main{padding:0;max-width:none}
+    .print-area{display:block !important}
+  }
+  .print-area{display:none}
+  .print-area.active{display:block}
+  @media screen{.print-area.active{position:fixed;inset:0;background:#fff;z-index:100;
+    overflow:auto;padding:24px;max-width:none}}
+
+  .pr h1{font-size:22px;margin:0 0 4px;color:var(--accent)}
+  .pr .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .pr h2{font-size:14px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);
+    margin:18px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}
+  .pr table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+  .pr table td{padding:5px 8px;vertical-align:top;border-bottom:1px solid var(--line)}
+  .pr table td:first-child{width:38%;color:var(--muted);font-weight:500}
+  .pr .photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+  .pr .photo-grid img{width:100%;border-radius:8px;border:1px solid var(--line)}
+  .pr .notes{background:#fafbfa;border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-size:13px;white-space:pre-wrap}
+  .pr-close{position:fixed;top:12px;right:12px;z-index:101}
+  @media print{.pr-close{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Canton Fair Tracker</h1>
+    <button class="menu" id="menuBtn" aria-label="Menu">⋯</button>
+  </div>
+  <nav class="tabs">
+    <button data-tab="suppliers" class="active">Suppliers <span class="count" id="cSup">0</span></button>
+    <button data-tab="fg">Finished Goods <span class="count" id="cFg">0</span></button>
+    <button data-tab="parts">Parts <span class="count" id="cPt">0</span></button>
+  </nav>
+</header>
+
+<div class="menu-list" id="menuList">
+  <button id="exportJson">Backup data (JSON)</button>
+  <button id="importJson">Restore from backup</button>
+  <button id="exportSummary">Trip summary PDF</button>
+  <button id="howto">How to use</button>
+  <button id="wipe" class="danger">Erase all data</button>
+</div>
+
+<main>
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search…">
+    <select id="filter"><option value="">All</option></select>
+  </div>
+  <div id="list" class="list"></div>
+</main>
+
+<button class="fab" id="addBtn" aria-label="Add">+</button>
+
+<!-- Sheet -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet">
+    <div class="sheet-h">
+      <button id="cancelBtn">Cancel</button>
+      <h2 id="sheetTitle">New</h2>
+      <button id="saveBtn"><b>Save</b></button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+
+<input type="file" id="restoreFile" accept="application/json" style="display:none">
+
+<!-- Print area -->
+<div class="print-area" id="printArea">
+  <button class="btn pr-close" id="printClose">Close</button>
+  <button class="btn primary pr-close" id="printGo" style="right:90px">Save as PDF</button>
+  <div class="pr" id="printContent"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Storage (IndexedDB for everything) ---------- */
+const DB = (() => {
+  let dbp;
+  function open(){
+    if(dbp) return dbp;
+    dbp = new Promise((res,rej)=>{
+      const req = indexedDB.open('cantonfair',1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        ['suppliers','fg','parts'].forEach(s=>{
+          if(!db.objectStoreNames.contains(s)) db.createObjectStore(s,{keyPath:'id'});
+        });
+      };
+      req.onsuccess = e => res(e.target.result);
+      req.onerror = e => rej(e.target.error);
+    });
+    return dbp;
+  }
+  async function tx(store, mode='readonly'){
+    const db = await open();
+    return db.transaction(store, mode).objectStore(store);
+  }
+  return {
+    async all(store){
+      const s = await tx(store);
+      return new Promise(res=>{
+        const out=[]; s.openCursor().onsuccess = e=>{
+          const c = e.target.result; if(c){out.push(c.value); c.continue();} else res(out);
+        };
+      });
+    },
+    async put(store, val){
+      const s = await tx(store,'readwrite');
+      return new Promise((res,rej)=>{ const r=s.put(val); r.onsuccess=()=>res(val); r.onerror=()=>rej(r.error); });
+    },
+    async del(store, id){
+      const s = await tx(store,'readwrite');
+      return new Promise((res,rej)=>{ const r=s.delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+    },
+    async clear(store){
+      const s = await tx(store,'readwrite');
+      return new Promise(r=>{ s.clear().onsuccess=()=>r(); });
+    },
+    async get(store, id){
+      const s = await tx(store);
+      return new Promise(r=>{ const q=s.get(id); q.onsuccess=()=>r(q.result); });
+    }
+  };
+})();
+
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------- State ---------- */
+const state = {
+  tab:'suppliers',
+  suppliers:[], fg:[], parts:[],
+  editing:null,         // {kind, item}
+  search:'', filter:''
+};
+const TAB = {
+  suppliers:{label:'Supplier', store:'suppliers'},
+  fg:{label:'Finished Good', store:'fg'},
+  parts:{label:'Part', store:'parts'}
+};
+
+async function reload(){
+  state.suppliers = await DB.all('suppliers');
+  state.fg = await DB.all('fg');
+  state.parts = await DB.all('parts');
+  $('#cSup').textContent = state.suppliers.length;
+  $('#cFg').textContent = state.fg.length;
+  $('#cPt').textContent = state.parts.length;
+  render();
+}
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+function fmtDate(ts){ if(!ts) return ''; return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+function supName(id){ const s=state.suppliers.find(x=>x.id===id); return s?s.name:'—'; }
+function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+/* photo compress */
+async function fileToCompressed(file, maxDim=1280, quality=.72){
+  const img = await new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = e => { const i = new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=e.target.result; };
+    r.onerror = rej; r.readAsDataURL(file);
+  });
+  let {width:w, height:h} = img;
+  if(w>maxDim||h>maxDim){ const r=Math.min(maxDim/w,maxDim/h); w=Math.round(w*r); h=Math.round(h*r); }
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  c.getContext('2d').drawImage(img,0,0,w,h);
+  return c.toDataURL('image/jpeg', quality);
+}
+
+/* ---------- Rendering ---------- */
+function render(){
+  $$('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===state.tab));
+  // filter dropdown
+  const fSel = $('#filter');
+  if(state.tab==='fg' || state.tab==='parts'){
+    fSel.style.display='';
+    fSel.innerHTML = '<option value="">All suppliers</option>' +
+      state.suppliers.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+    fSel.value = state.filter;
+  } else {
+    fSel.style.display='none';
+    state.filter='';
+  }
+  let items = state[state.tab].slice();
+  if(state.filter) items = items.filter(x=>x.supplierId===state.filter);
+  if(state.search){
+    const q = state.search.toLowerCase();
+    items = items.filter(x=>JSON.stringify(x).toLowerCase().includes(q));
+  }
+  items.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const list = $('#list');
+  if(!items.length){
+    const nice = TAB[state.tab].label.toLowerCase();
+    list.innerHTML = `<div class="empty"><b>No ${nice}s yet</b>Tap + to add your first ${nice}.</div>`;
+    return;
+  }
+  list.innerHTML = items.map(it=>renderCard(it)).join('');
+  $$('#list .item').forEach(el=>{
+    el.addEventListener('click',()=>edit(state.tab, el.dataset.id));
+  });
+}
+function renderCard(it){
+  const photo = (it.photos&&it.photos[0]) || '';
+  const thumb = photo ? `<img src="${photo}">` : 'no photo';
+  let title = it.name || '(unnamed)';
+  let sub = '', chips = [];
+  if(state.tab==='suppliers'){
+    sub = [it.booth, it.city||it.country].filter(Boolean).join(' · ') || 'Tap to fill in';
+    if(it.capacity) chips.push(`Cap: ${escapeHtml(it.capacity)}`);
+    if(it.leadTime) chips.push(`LT: ${escapeHtml(it.leadTime)}`);
+    if(it.moq) chips.push(`MOQ: ${escapeHtml(it.moq)}`);
+  } else if(state.tab==='fg'){
+    const p = (it.price?`${it.currency||'USD'} ${it.price}`:'');
+    sub = [supName(it.supplierId), it.category].filter(Boolean).join(' · ');
+    if(p) chips.push(p);
+    if(it.moq) chips.push(`MOQ ${escapeHtml(it.moq)}`);
+    if(it.leadTime) chips.push(`LT ${escapeHtml(it.leadTime)}`);
+    if(it.variants && it.variants.length) chips.push(`${it.variants.length} variants`);
+  } else {
+    const p = (it.price?`${it.currency||'USD'} ${it.price}`:'');
+    sub = [supName(it.supplierId), it.partType].filter(Boolean).join(' · ');
+    if(p) chips.push(p);
+    if(it.moq) chips.push(`MOQ ${escapeHtml(it.moq)}`);
+    if(it.relatedFg && it.relatedFg.length){
+      const names = it.relatedFg.map(id=>state.fg.find(f=>f.id===id)?.name).filter(Boolean);
+      if(names.length) chips.push(`for: ${escapeHtml(names.join(', '))}`);
+    }
+  }
+  return `<div class="item" data-id="${it.id}">
+    <div class="thumb">${thumb}</div>
+    <div class="meta">
+      <p class="t">${escapeHtml(title)}</p>
+      <div class="s">${escapeHtml(sub)}</div>
+      <div class="chips">${chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Editor ---------- */
+function blank(kind){
+  const base = {id:uid(), createdAt:Date.now(), updatedAt:Date.now(), photos:[]};
+  if(kind==='suppliers') return {...base, name:'',booth:'',country:'',city:'',contact:'',phone:'',wechat:'',email:'',website:'',
+    factoryLoc:'',capacity:'',lines:'',capabilities:[],certs:[],leadTime:'',moq:'',paymentTerms:'',notes:''};
+  if(kind==='fg') return {...base, name:'',supplierId:'',category:'',description:'',
+    price:'',currency:'USD',moq:'',leadTime:'',
+    dimensions:'',weight:'',material:'',packaging:'',
+    sampleStatus:'',sampleCost:'',variants:[],notes:''};
+  return {...base, name:'',supplierId:'',partType:'',price:'',currency:'USD',moq:'',leadTime:'',
+    material:'',dimensions:'',color:'',finish:'',relatedFg:[],notes:''};
+}
+function edit(kind, id){
+  const item = id ? state[kind].find(x=>x.id===id) : blank(kind);
+  state.editing = {kind, item: JSON.parse(JSON.stringify(item))};
+  $('#sheetTitle').textContent = (id?'Edit ':'New ') + TAB[kind].label;
+  $('#sheetBody').innerHTML = formHtml(state.editing.item, kind);
+  bindFormEvents();
+  $('#sheetBg').classList.add('show');
+}
+function close(){ $('#sheetBg').classList.remove('show'); state.editing=null; }
+
+function formHtml(it, kind){
+  const photoBlock = `
+    <div class="group"><h3>Photos</h3>
+      <div class="photos" id="photos">
+        ${(it.photos||[]).map((p,i)=>`<div class="photo"><img src="${p}"><button data-photo="${i}">×</button></div>`).join('')}
+        <label class="add-photo"><span>+</span>add photo
+          <input type="file" accept="image/*" capture="environment" multiple style="display:none" id="photoInput">
+        </label>
+      </div>
+    </div>`;
+  const supOpts = '<option value="">— select supplier —</option>' +
+    state.suppliers.map(s=>`<option value="${s.id}" ${it.supplierId===s.id?'selected':''}>${escapeHtml(s.name)}</option>`).join('');
+
+  if(kind==='suppliers'){
+    const caps = ['OEM','ODM','Mold-making','Assembly','Custom packaging','Quick samples','Lab test','In-house QC'];
+    const certs = ['ISO9001','BSCI','SEDEX','REACH','CE','FCC','CPSIA','OEKO-TEX'];
+    return `
+      ${photoBlock}
+      <div class="group"><h3>Basics</h3>
+        <label class="f"><span>Company name *</span><input data-k="name" value="${escapeHtml(it.name)}" placeholder="e.g. Foshan ABC Co., Ltd."></label>
+        <div class="row2">
+          <label class="f"><span>Booth #</span><input data-k="booth" value="${escapeHtml(it.booth)}"></label>
+          <label class="f"><span>Country</span><input data-k="country" value="${escapeHtml(it.country)}"></label>
+        </div>
+        <label class="f"><span>City / Factory location</span><input data-k="factoryLoc" value="${escapeHtml(it.factoryLoc)}" placeholder="e.g. Foshan, Guangdong"></label>
+      </div>
+      <div class="group"><h3>Contact</h3>
+        <div class="row2">
+          <label class="f"><span>Person</span><input data-k="contact" value="${escapeHtml(it.contact)}"></label>
+          <label class="f"><span>Phone</span><input data-k="phone" value="${escapeHtml(it.phone)}"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span>WeChat</span><input data-k="wechat" value="${escapeHtml(it.wechat)}"></label>
+          <label class="f"><span>Email</span><input data-k="email" type="email" value="${escapeHtml(it.email)}"></label>
+        </div>
+        <label class="f"><span>Website / Alibaba</span><input data-k="website" value="${escapeHtml(it.website)}"></label>
+      </div>
+      <div class="group"><h3>Factory & Capacity</h3>
+        <div class="row2">
+          <label class="f"><span>Capacity (units/month)</span><input data-k="capacity" value="${escapeHtml(it.capacity)}"></label>
+          <label class="f"><span>Production lines</span><input data-k="lines" value="${escapeHtml(it.lines)}"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}" placeholder="e.g. 35 days"></label>
+          <label class="f"><span>MOQ (general)</span><input data-k="moq" value="${escapeHtml(it.moq)}"></label>
+        </div>
+        <label class="f"><span>Payment terms</span><input data-k="paymentTerms" value="${escapeHtml(it.paymentTerms)}" placeholder="e.g. 30% TT, 70% before shipment"></label>
+        <label class="f"><span>Capabilities</span>
+          <div class="pills" data-multi="capabilities">
+            ${caps.map(c=>`<label class="pill ${it.capabilities.includes(c)?'on':''}"><input type="checkbox" value="${c}" ${it.capabilities.includes(c)?'checked':''}>${c}</label>`).join('')}
+          </div>
+        </label>
+        <label class="f"><span>Certifications</span>
+          <div class="pills" data-multi="certs">
+            ${certs.map(c=>`<label class="pill ${it.certs.includes(c)?'on':''}"><input type="checkbox" value="${c}" ${it.certs.includes(c)?'checked':''}>${c}</label>`).join('')}
+          </div>
+        </label>
+      </div>
+      <div class="group"><h3>Production notes</h3>
+        <label class="f"><span>Free notes (anything they said, observations, vibes)</span>
+          <textarea data-k="notes" rows="5">${escapeHtml(it.notes)}</textarea></label>
+      </div>
+      <div class="actions">
+        ${it.id && state.suppliers.find(s=>s.id===it.id)?`<button class="btn danger" data-act="del">Delete</button>`:''}
+      </div>`;
+  }
+  if(kind==='fg'){
+    return `
+      ${photoBlock}
+      <div class="group"><h3>Basics</h3>
+        <label class="f"><span>Product name *</span><input data-k="name" value="${escapeHtml(it.name)}"></label>
+        <label class="f"><span>Supplier</span><select data-k="supplierId">${supOpts}</select></label>
+        <div class="row2">
+          <label class="f"><span>Category</span><input data-k="category" value="${escapeHtml(it.category)}" placeholder="e.g. sofa, lamp"></label>
+          <label class="f"><span>Description</span><input data-k="description" value="${escapeHtml(it.description)}"></label>
+        </div>
+      </div>
+      <div class="group"><h3>Price & Terms</h3>
+        <div class="row3">
+          <label class="f"><span>Price</span><input data-k="price" type="number" step="0.01" value="${escapeHtml(it.price)}"></label>
+          <label class="f"><span>Currency</span>
+            <select data-k="currency">
+              ${['USD','CNY','EUR','IDR'].map(c=>`<option ${it.currency===c?'selected':''}>${c}</option>`).join('')}
+            </select></label>
+          <label class="f"><span>MOQ</span><input data-k="moq" value="${escapeHtml(it.moq)}"></label>
+        </div>
+        <label class="f"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}"></label>
+      </div>
+      <div class="group"><h3>Specs</h3>
+        <div class="row2">
+          <label class="f"><span>Dimensions</span><input data-k="dimensions" value="${escapeHtml(it.dimensions)}"></label>
+          <label class="f"><span>Weight</span><input data-k="weight" value="${escapeHtml(it.weight)}"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span>Material</span><input data-k="material" value="${escapeHtml(it.material)}"></label>
+          <label class="f"><span>Packaging</span><input data-k="packaging" value="${escapeHtml(it.packaging)}"></label>
+        </div>
+      </div>
+      <div class="group"><h3>Variants (color / size / SKU)</h3>
+        <div class="variants" id="variants">
+          ${(it.variants||[]).map((v,i)=>variantRow(v,i)).join('')}
+        </div>
+        <button class="add-row" id="addVariant">+ Add variant</button>
+      </div>
+      <div class="group"><h3>Sample</h3>
+        <div class="row2">
+          <label class="f"><span>Sample status</span>
+            <select data-k="sampleStatus">
+              ${['','Not requested','Requested','Received','In transit','Approved','Rejected'].map(s=>`<option ${it.sampleStatus===s?'selected':''}>${s||'—'}</option>`).join('')}
+            </select></label>
+          <label class="f"><span>Sample cost</span><input data-k="sampleCost" value="${escapeHtml(it.sampleCost)}"></label>
+        </div>
+      </div>
+      <div class="group"><h3>Notes</h3>
+        <label class="f"><span>Free notes</span><textarea data-k="notes" rows="4">${escapeHtml(it.notes)}</textarea></label>
+      </div>
+      <div class="actions">
+        ${it.id && state.fg.find(f=>f.id===it.id)?`<button class="btn primary" data-act="pdf">📄 Generate PDF report</button><button class="btn danger" data-act="del">Delete</button>`:''}
+      </div>`;
+  }
+  // parts
+  const fgChecks = state.fg.map(f=>`<label class="pill ${(it.relatedFg||[]).includes(f.id)?'on':''}"><input type="checkbox" value="${f.id}" ${(it.relatedFg||[]).includes(f.id)?'checked':''}>${escapeHtml(f.name)}</label>`).join('') || '<i style="color:var(--muted);font-size:13px">Add finished goods first to link them</i>';
+  return `
+    ${photoBlock}
+    <div class="group"><h3>Basics</h3>
+      <label class="f"><span>Part name *</span><input data-k="name" value="${escapeHtml(it.name)}"></label>
+      <label class="f"><span>Supplier</span><select data-k="supplierId">${supOpts}</select></label>
+      <div class="row2">
+        <label class="f"><span>Part type</span><input data-k="partType" value="${escapeHtml(it.partType)}" placeholder="e.g. zipper, foam, hinge"></label>
+        <label class="f"><span>For finished goods</span>
+          <div class="pills" data-multi="relatedFg" style="margin-top:2px">${fgChecks}</div>
+        </label>
+      </div>
+    </div>
+    <div class="group"><h3>Price & Terms</h3>
+      <div class="row3">
+        <label class="f"><span>Price</span><input data-k="price" type="number" step="0.01" value="${escapeHtml(it.price)}"></label>
+        <label class="f"><span>Currency</span>
+          <select data-k="currency">${['USD','CNY','EUR','IDR'].map(c=>`<option ${it.currency===c?'selected':''}>${c}</option>`).join('')}</select></label>
+        <label class="f"><span>MOQ</span><input data-k="moq" value="${escapeHtml(it.moq)}"></label>
+      </div>
+      <label class="f"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}"></label>
+    </div>
+    <div class="group"><h3>Specs</h3>
+      <div class="row2">
+        <label class="f"><span>Material</span><input data-k="material" value="${escapeHtml(it.material)}"></label>
+        <label class="f"><span>Dimensions</span><input data-k="dimensions" value="${escapeHtml(it.dimensions)}"></label>
+      </div>
+      <div class="row2">
+        <label class="f"><span>Color</span><input data-k="color" value="${escapeHtml(it.color)}"></label>
+        <label class="f"><span>Finish</span><input data-k="finish" value="${escapeHtml(it.finish)}"></label>
+      </div>
+    </div>
+    <div class="group"><h3>Notes</h3>
+      <label class="f"><span>Free notes</span><textarea data-k="notes" rows="4">${escapeHtml(it.notes)}</textarea></label>
+    </div>
+    <div class="actions">
+      ${it.id && state.parts.find(p=>p.id===it.id)?`<button class="btn danger" data-act="del">Delete</button>`:''}
+    </div>`;
+}
+function variantRow(v={},i){
+  return `<div class="v-row" data-i="${i}">
+    <input data-vk="name" value="${escapeHtml(v.name||'')}" placeholder="color/size">
+    <input data-vk="sku" value="${escapeHtml(v.sku||'')}" placeholder="SKU">
+    <input data-vk="price" value="${escapeHtml(v.price||'')}" placeholder="±price">
+    <button data-vremove="${i}">×</button>
+  </div>`;
+}
+
+function bindFormEvents(){
+  // text/select inputs
+  $$('#sheetBody [data-k]').forEach(el=>{
+    el.addEventListener('input',()=>{
+      state.editing.item[el.dataset.k] = el.value;
+    });
+  });
+  // multi pills
+  $$('#sheetBody [data-multi]').forEach(box=>{
+    const k = box.dataset.multi;
+    box.addEventListener('change', e=>{
+      if(e.target.matches('input[type=checkbox]')){
+        const checked = Array.from(box.querySelectorAll('input[type=checkbox]:checked')).map(i=>i.value);
+        state.editing.item[k] = checked;
+        e.target.closest('.pill').classList.toggle('on', e.target.checked);
+      }
+    });
+  });
+  // photo input
+  const pin = $('#photoInput');
+  if(pin){
+    pin.addEventListener('change', async e=>{
+      for(const f of e.target.files){
+        try{
+          const data = await fileToCompressed(f);
+          state.editing.item.photos = state.editing.item.photos || [];
+          state.editing.item.photos.push(data);
+        }catch(err){console.error(err)}
+      }
+      refreshPhotos();
+      e.target.value='';
+    });
+  }
+  $$('#sheetBody .photo button[data-photo]').forEach(b=>{
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const i=+b.dataset.photo;
+      state.editing.item.photos.splice(i,1);
+      refreshPhotos();
+    });
+  });
+  // variants
+  const addV = $('#addVariant');
+  if(addV) addV.addEventListener('click',()=>{
+    state.editing.item.variants = state.editing.item.variants || [];
+    state.editing.item.variants.push({name:'',sku:'',price:''});
+    refreshVariants();
+  });
+  $$('#variants .v-row').forEach(row=>{
+    const i = +row.dataset.i;
+    row.querySelectorAll('input[data-vk]').forEach(inp=>{
+      inp.addEventListener('input',()=>{
+        state.editing.item.variants[i][inp.dataset.vk] = inp.value;
+      });
+    });
+    const rm = row.querySelector('[data-vremove]');
+    if(rm) rm.addEventListener('click',()=>{
+      state.editing.item.variants.splice(i,1);
+      refreshVariants();
+    });
+  });
+  // action buttons
+  $$('#sheetBody .actions button').forEach(b=>{
+    b.addEventListener('click', async e=>{
+      e.preventDefault();
+      const act = b.dataset.act;
+      if(act==='del'){
+        if(!confirm('Delete this item?')) return;
+        const {kind,item} = state.editing;
+        await DB.del(TAB[kind].store, item.id);
+        await reload(); close(); toast('Deleted');
+      } else if(act==='pdf'){
+        await save({silent:true});
+        renderPDF(state.editing.item.id);
+      }
+    });
+  });
+}
+function refreshPhotos(){
+  const it = state.editing.item;
+  const wrap = $('#photos');
+  wrap.innerHTML = (it.photos||[]).map((p,i)=>`<div class="photo"><img src="${p}"><button data-photo="${i}">×</button></div>`).join('') +
+    `<label class="add-photo"><span>+</span>add photo
+      <input type="file" accept="image/*" capture="environment" multiple style="display:none" id="photoInput"></label>`;
+  bindFormEvents();
+}
+function refreshVariants(){
+  const it = state.editing.item;
+  $('#variants').innerHTML = (it.variants||[]).map((v,i)=>variantRow(v,i)).join('');
+  bindFormEvents();
+}
+
+async function save(opts={}){
+  const {kind,item} = state.editing;
+  if(!item.name || !item.name.trim()){
+    toast('Name is required'); return false;
+  }
+  item.updatedAt = Date.now();
+  await DB.put(TAB[kind].store, item);
+  await reload();
+  if(!opts.silent){ close(); toast('Saved'); }
+  return true;
+}
+
+/* ---------- PDF (per finished good) ---------- */
+function renderPDF(fgId){
+  const fg = state.fg.find(x=>x.id===fgId);
+  if(!fg){ toast('Save first'); return; }
+  const sup = state.suppliers.find(s=>s.id===fg.supplierId);
+  const linkedParts = state.parts.filter(p => (p.relatedFg||[]).includes(fgId));
+  const date = new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  let html = `
+    <h1>${escapeHtml(fg.name||'(unnamed)')}</h1>
+    <div class="sub">Canton Fair · ${date}${sup?` · ${escapeHtml(sup.name)}`:''}</div>
+
+    <h2>Product</h2>
+    <table>
+      ${row('Category', fg.category)}
+      ${row('Description', fg.description)}
+      ${row('Price', fg.price ? `${fg.currency||'USD'} ${fg.price}` : '')}
+      ${row('MOQ', fg.moq)}
+      ${row('Lead time', fg.leadTime)}
+      ${row('Dimensions', fg.dimensions)}
+      ${row('Weight', fg.weight)}
+      ${row('Material', fg.material)}
+      ${row('Packaging', fg.packaging)}
+      ${row('Sample status', fg.sampleStatus)}
+      ${row('Sample cost', fg.sampleCost)}
+    </table>
+
+    ${(fg.variants&&fg.variants.length)?`
+      <h2>Variants</h2>
+      <table>
+        <tr style="background:#f5f6f8"><td><b>Name</b></td><td><b>SKU</b></td><td style="width:auto"><b>Price ±</b></td></tr>
+        ${fg.variants.map(v=>`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.sku)}</td><td>${escapeHtml(v.price)}</td></tr>`).join('')}
+      </table>`:''}
+
+    ${(fg.photos&&fg.photos.length)?`
+      <h2>Photos</h2>
+      <div class="photo-grid">${fg.photos.map(p=>`<img src="${p}">`).join('')}</div>`:''}
+
+    ${fg.notes?`<h2>Notes</h2><div class="notes">${escapeHtml(fg.notes)}</div>`:''}
+
+    ${sup?`
+      <h2>Supplier</h2>
+      <table>
+        ${row('Company', sup.name)}
+        ${row('Booth', sup.booth)}
+        ${row('Location', [sup.factoryLoc,sup.country].filter(Boolean).join(', '))}
+        ${row('Contact', [sup.contact,sup.phone,sup.email,sup.wechat?'WeChat: '+sup.wechat:''].filter(Boolean).join(' · '))}
+        ${row('Website', sup.website)}
+        ${row('Capacity', sup.capacity)}
+        ${row('Lead time', sup.leadTime)}
+        ${row('Payment', sup.paymentTerms)}
+        ${row('Capabilities', (sup.capabilities||[]).join(', '))}
+        ${row('Certifications', (sup.certs||[]).join(', '))}
+      </table>
+      ${sup.notes?`<div class="notes" style="margin-top:8px">${escapeHtml(sup.notes)}</div>`:''}`:''}
+
+    ${linkedParts.length?`
+      <h2>Linked parts</h2>
+      <table>
+        <tr style="background:#f5f6f8"><td><b>Part</b></td><td><b>Supplier</b></td><td><b>Price · MOQ · LT</b></td></tr>
+        ${linkedParts.map(p=>`<tr>
+          <td>${escapeHtml(p.name)}${p.partType?` <small style="color:#6b7770">(${escapeHtml(p.partType)})</small>`:''}</td>
+          <td>${escapeHtml(supName(p.supplierId))}</td>
+          <td>${[p.price?`${p.currency||'USD'} ${p.price}`:'',p.moq?`MOQ ${p.moq}`:'',p.leadTime?`LT ${p.leadTime}`:''].filter(Boolean).join(' · ')}</td>
+        </tr>`).join('')}
+      </table>`:''}
+  `;
+  $('#printContent').innerHTML = html;
+  $('#printArea').classList.add('active');
+}
+function row(k,v){ return v?`<tr><td>${k}</td><td>${escapeHtml(v)}</td></tr>`:''; }
+
+function renderTripSummaryPDF(){
+  const date = new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  let html = `<h1>Canton Fair — Trip Summary</h1>
+    <div class="sub">${date} · ${state.suppliers.length} suppliers · ${state.fg.length} finished goods · ${state.parts.length} parts</div>
+
+    <h2>Suppliers</h2>
+    <table>
+      <tr style="background:#f5f6f8"><td><b>Supplier</b></td><td><b>Booth · Location</b></td><td><b>Contact</b></td></tr>
+      ${state.suppliers.map(s=>`<tr>
+        <td>${escapeHtml(s.name)}</td>
+        <td>${escapeHtml([s.booth,s.factoryLoc||s.country].filter(Boolean).join(' · '))}</td>
+        <td>${escapeHtml([s.contact,s.phone,s.email,s.wechat?'WeChat: '+s.wechat:''].filter(Boolean).join(' · '))}</td>
+      </tr>`).join('')}
+    </table>
+
+    <h2>Finished Goods</h2>
+    <table>
+      <tr style="background:#f5f6f8"><td><b>Product</b></td><td><b>Supplier</b></td><td><b>Price · MOQ · LT</b></td></tr>
+      ${state.fg.map(f=>`<tr>
+        <td>${escapeHtml(f.name)}${f.category?` <small style="color:#6b7770">(${escapeHtml(f.category)})</small>`:''}</td>
+        <td>${escapeHtml(supName(f.supplierId))}</td>
+        <td>${[f.price?`${f.currency||'USD'} ${f.price}`:'',f.moq?`MOQ ${f.moq}`:'',f.leadTime?`LT ${f.leadTime}`:''].filter(Boolean).join(' · ')}</td>
+      </tr>`).join('')}
+    </table>
+
+    <h2>Parts</h2>
+    <table>
+      <tr style="background:#f5f6f8"><td><b>Part</b></td><td><b>Supplier</b></td><td><b>Used for</b></td><td><b>Price · MOQ</b></td></tr>
+      ${state.parts.map(p=>`<tr>
+        <td>${escapeHtml(p.name)}${p.partType?` <small style="color:#6b7770">(${escapeHtml(p.partType)})</small>`:''}</td>
+        <td>${escapeHtml(supName(p.supplierId))}</td>
+        <td>${escapeHtml((p.relatedFg||[]).map(id=>state.fg.find(f=>f.id===id)?.name).filter(Boolean).join(', '))}</td>
+        <td>${[p.price?`${p.currency||'USD'} ${p.price}`:'',p.moq?`MOQ ${p.moq}`:''].filter(Boolean).join(' · ')}</td>
+      </tr>`).join('')}
+    </table>`;
+  $('#printContent').innerHTML = html;
+  $('#printArea').classList.add('active');
+}
+
+/* ---------- Backup / Restore ---------- */
+async function exportJson(){
+  const data = {
+    version:1,
+    exportedAt:new Date().toISOString(),
+    suppliers:state.suppliers, fg:state.fg, parts:state.parts
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `canton-fair-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  toast('Backup downloaded — share to Drive');
+}
+async function importJson(file){
+  try{
+    const txt = await file.text();
+    const data = JSON.parse(txt);
+    if(!data.suppliers && !data.fg && !data.parts) throw new Error('Bad file');
+    if(!confirm('This will REPLACE all current data. Continue?')) return;
+    await DB.clear('suppliers'); await DB.clear('fg'); await DB.clear('parts');
+    for(const s of (data.suppliers||[])) await DB.put('suppliers',s);
+    for(const f of (data.fg||[])) await DB.put('fg',f);
+    for(const p of (data.parts||[])) await DB.put('parts',p);
+    await reload();
+    toast('Restored');
+  }catch(e){ alert('Could not read file: '+e.message); }
+}
+
+/* ---------- Wire up UI ---------- */
+$$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  state.tab = b.dataset.tab; state.search=''; $('#search').value=''; render();
+}));
+$('#search').addEventListener('input',e=>{ state.search=e.target.value; render(); });
+$('#filter').addEventListener('change',e=>{ state.filter=e.target.value; render(); });
+$('#addBtn').addEventListener('click',()=>edit(state.tab,null));
+$('#cancelBtn').addEventListener('click',close);
+$('#saveBtn').addEventListener('click',()=>save());
+$('#sheetBg').addEventListener('click',e=>{ if(e.target.id==='sheetBg') close(); });
+
+$('#menuBtn').addEventListener('click',e=>{ e.stopPropagation(); $('#menuList').classList.toggle('show'); });
+document.addEventListener('click',e=>{ if(!e.target.closest('#menuList')&&!e.target.closest('#menuBtn')) $('#menuList').classList.remove('show'); });
+$('#exportJson').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); exportJson(); });
+$('#importJson').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); $('#restoreFile').click(); });
+$('#restoreFile').addEventListener('change',e=>{ if(e.target.files[0]) importJson(e.target.files[0]); e.target.value=''; });
+$('#exportSummary').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); renderTripSummaryPDF(); });
+$('#wipe').addEventListener('click',async ()=>{
+  $('#menuList').classList.remove('show');
+  if(!confirm('ERASE ALL DATA? This cannot be undone.')) return;
+  if(!confirm('Really sure? Make a backup first.')) return;
+  await DB.clear('suppliers'); await DB.clear('fg'); await DB.clear('parts');
+  await reload(); toast('Erased');
+});
+$('#howto').addEventListener('click',()=>{
+  $('#menuList').classList.remove('show');
+  alert(`Quick guide:
+
+1. Tap + to add a Supplier, Finished Good, or Part.
+2. For Parts, link to Finished Goods so they appear in PDF reports.
+3. Photos: tap "+ add photo" — uses iPhone camera.
+4. Per-FG PDF: open a Finished Good → "Generate PDF report" → Save as PDF → upload to Trello.
+5. Trip summary PDF: top-right ⋯ → Trip summary PDF.
+6. Backup daily: ⋯ → Backup data → save the JSON to Drive.
+7. Add to home screen (Safari Share → Add to Home Screen) for app-like use.
+
+All data is stored locally on this device. Always back up before clearing browser data.`);
+});
+
+$('#printClose').addEventListener('click',()=>{ $('#printArea').classList.remove('active'); });
+$('#printGo').addEventListener('click',()=>window.print());
+
+reload();
+</script>
+</body>
+</html>
