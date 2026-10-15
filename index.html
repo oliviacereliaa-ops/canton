@@ -152,13 +152,13 @@ td small{display:block;color:var(--muted);font-size:11.5px}
     <div class="seg" id="f-source"><button type="button" data-v="Import" class="on">Import</button><button type="button" data-v="Local">Local</button></div>
 
     <div class="row">
-      <div><label for="f-gsm">GSM</label><input id="f-gsm" type="number" inputmode="decimal" placeholder="90"></div>
-      <div><label for="f-width">Width (cm)</label><input id="f-width" type="number" inputmode="decimal" placeholder="265"></div>
+      <div><label for="f-gsm">GSM</label><input id="f-gsm" type="text" inputmode="decimal" placeholder="90"></div>
+      <div><label for="f-width">Width (cm)</label><input id="f-width" type="text" inputmode="decimal" placeholder="265"></div>
     </div>
     <div class="hint">GSM + width lets it compare per kg (fairest). Without GSM it falls back to per m².</div>
 
     <div class="row">
-      <div><label for="f-price">Price</label><input id="f-price" type="number" inputmode="decimal" step="any" placeholder="4.50"></div>
+      <div><label for="f-price">Price</label><input id="f-price" type="text" inputmode="decimal" placeholder="4.50"></div>
       <div><label>Currency</label>
         <div class="seg" id="f-cur"><button type="button" data-v="RMB" class="on">¥</button><button type="button" data-v="USD">$</button><button type="button" data-v="IDR">Rp</button></div></div>
     </div>
@@ -210,8 +210,8 @@ td small{display:block;color:var(--muted);font-size:11.5px}
   <div class="card">
     <h2>Exchange rates (IDR)</h2>
     <div class="row">
-      <div><label for="s-rmb">1 RMB =</label><input id="s-rmb" type="number" inputmode="decimal"></div>
-      <div><label for="s-usd">1 USD =</label><input id="s-usd" type="number" inputmode="decimal"></div>
+      <div><label for="s-rmb">1 RMB =</label><input id="s-rmb" type="text" inputmode="decimal"></div>
+      <div><label for="s-usd">1 USD =</label><input id="s-usd" type="text" inputmode="decimal"></div>
     </div>
     <div class="hint" id="sheet-rates"></div>
     <div class="btns"><button class="btn ghost small" id="s-use-sheet">Use rates from sheet</button></div>
@@ -384,13 +384,30 @@ function fillLists() {
 
 function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
+// "4,5" -> 4.5 · "4.50" -> 4.5 · "12,500" / "12.500" (Rp thousands) -> 12500 · "1.234,5" -> 1234.5
+function numIn(v) {
+  var t = String(v == null ? '' : v).trim().replace(/[^0-9.,]/g, '');
+  if (!t) return '';
+  var lc = t.lastIndexOf(','), ld = t.lastIndexOf('.');
+  if (lc >= 0 && ld >= 0) t = lc > ld ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  else if (lc >= 0) t = /^\d{1,3}(,\d{3})+$/.test(t) ? t.replace(/,/g, '') : t.replace(/,/g, '.');
+  else if (/^\d{1,3}(\.\d{3}){2,}$/.test(t)) t = t.replace(/\./g, '');
+  var n = parseFloat(t);
+  return isFinite(n) ? n : '';
+}
+// Rupiah has no decimals, so "12.500" means 12,500
+function priceIn(v, cur) {
+  var t = String(v || '').trim();
+  if (cur === 'IDR' && /^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  return numIn(t);
+}
 function readForm() {
   return {
     description: $('f-desc').value.trim(), category: $('f-cat').value, fabricType: $('f-type').value,
     material: $('f-mat').value.trim(),
     finish: [].map.call($('f-finish').querySelectorAll('.on'), function (b) { return b.dataset.v; }).join(', '),
-    source: segVal('f-source'), gsm: $('f-gsm').value, width: $('f-width').value,
-    price: $('f-price').value, currency: segVal('f-cur'), unit: segVal('f-unit'),
+    source: segVal('f-source'), gsm: numIn($('f-gsm').value), width: numIn($('f-width').value),
+    price: priceIn($('f-price').value, segVal('f-cur')), currency: segVal('f-cur'), unit: segVal('f-unit'),
     vendor: $('f-vendor').value.trim(), moq: $('f-moq').value.trim(),
     date: $('f-date').value || today(), event: $('f-event').value.trim(), notes: $('f-notes').value.trim()
   };
@@ -447,6 +464,12 @@ function orig(v, cur, unit) {
   var d = cur === 'IDR' ? 0 : v < 10 ? 2 : 1;
   return (cur === 'IDR' ? 'Rp' + Math.round(v).toLocaleString('en-US') : CUR_SYM[cur] + v.toFixed(d)) + '/' + UNIT_LBL[unit];
 }
+// target price in Rupiah, same unit as the quote; for IDR quotes also show the comparison metric
+function askRp(v, t) {
+  if (t.currency === 'IDR') return '';
+  var rate = t.currency === 'RMB' ? settings.rmb : settings.usd;
+  return 'Rp' + Math.round(v * rate).toLocaleString('en-US') + '/' + UNIT_LBL[t.unit];
+}
 function ageText(a) { return a == null ? 'no date' : a < 1 ? 'this month' : Math.round(a) + ' mo ago'; }
 
 function renderResult(o, rec, r) {
@@ -460,7 +483,7 @@ function renderResult(o, rec, r) {
   h += '<div class="kpis">' +
     '<div class="kpi"><span>This quote</span><b>' + rp(r.value) + per(r.metric) + '</b><span>' + esc(orig(o.price * 1, o.currency, o.unit)) + '</span></div>' +
     '<div class="kpi"><span>Peer median</span><b>' + rp(r.median) + per(r.metric) + '</b><span>' + (r.peers.length) + ' quotes</span></div>' +
-    '<div class="kpi"><span>Ask for</span><b>' + (r.target ? esc(orig(r.target.median, r.target.currency, r.target.unit)) : '—') + '</b><span>' + (r.target ? 'good: ' + esc(orig(r.target.p25, r.target.currency, r.target.unit)) : '') + '</span></div>' +
+    '<div class="kpi"><span>Ask for</span><b>' + (r.target ? esc(orig(r.target.median, r.target.currency, r.target.unit)) : '—') + '</b><span>' + (r.target ? esc(askRp(r.target.median, r.target)) + '<br>good: ' + esc(orig(r.target.p25, r.target.currency, r.target.unit)) + (r.target.currency !== 'IDR' ? ' · ' + esc(askRp(r.target.p25, r.target)) : '') : '') + '</span></div>' +
     '</div></div>';
 
   if (r.peers.length) {
@@ -542,7 +565,7 @@ function loadSettingsForm() {
 }
 function saveSettings() { lsSet(LS.settings, settings); }
 function readScoring() {
-  settings.rmb = +$('s-rmb').value || E.DEFAULTS.rmb; settings.usd = +$('s-usd').value || E.DEFAULTS.usd;
+  settings.rmb = +numIn($('s-rmb').value) || E.DEFAULTS.rmb; settings.usd = +numIn($('s-usd').value) || E.DEFAULTS.usd;
   settings.halfLifeMonths = +$('s-half').value || E.DEFAULTS.halfLifeMonths;
   settings.staleMonths = +$('s-stale').value || E.DEFAULTS.staleMonths;
   settings.includeInquiries = $('s-inq').checked;
