@@ -1,931 +1,569 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a34">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Canton Products">
-<meta name="theme-color" content="#0ea5e9">
-<title>Canton Fair · Products</title>
+<title>Fabric Price Checker</title>
 <style>
-  *,*::before,*::after{box-sizing:border-box}
-  :root{
-    --bg:#f0f9ff;--card:#fff;--ink:#0f2438;--muted:#5d7286;
-    --line:#d9e6f0;--accent:#0ea5e9;--accent2:#38bdf8;--accent-d:#0369a1;
-    --warn:#c2410c;--ok:#0d9488;--chip:#e0f2fe;
-  }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
-    font:15px/1.45 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
-    -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
-  body{padding-bottom:env(safe-area-inset-bottom);min-height:100vh}
-  header{position:sticky;top:0;z-index:10;
-    background:linear-gradient(135deg,#38bdf8 0%,#60a5fa 100%);
-    color:#fff;padding:env(safe-area-inset-top) 14px 0;
-    box-shadow:0 1px 3px rgba(2,132,199,.12)}
-  .brand{display:flex;align-items:center;justify-content:space-between;height:50px}
-  .brand h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
-  .brand h1 small{font-weight:400;opacity:.85;font-size:13px;margin-left:6px}
-  .brand .menu{background:transparent;border:0;color:#fff;font-size:22px;padding:6px 10px;cursor:pointer}
+:root{
+  --bg:#f4f2ee; --card:#fff; --ink:#1d2321; --muted:#6b726f; --line:#e3e0d9;
+  --brand:#1f3a34; --brand-ink:#fff; --accent:#c8794a;
+  --low:#2f7d4f; --low-bg:#e3f2e8; --fair:#2d5f8a; --fair-bg:#e2ecf5;
+  --high:#b06a12; --high-bg:#fbefdc; --way:#b3312a; --way-bg:#fbe3e1; --none:#6b726f; --none-bg:#eceae5;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141816; --card:#1d2220; --ink:#e9ece9; --muted:#9aa29e; --line:#2e3532;
+    --brand:#a8d0c2; --brand-ink:#10201b;
+    --low:#7fd3a0; --low-bg:#1c3326; --fair:#8fbde6; --fair-bg:#1b2a38;
+    --high:#f0b35e; --high-bg:#3a2b14; --way:#f1877f; --way-bg:#3d1d1a; --none:#9aa29e; --none-bg:#262c29; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:var(--brand-ink);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 0}
+header .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
+#status{font-size:12px;opacity:.85;text-align:right}
+nav{display:flex;gap:4px;margin-top:8px}
+nav button{flex:1;background:none;border:0;color:inherit;opacity:.7;padding:10px 0 12px;font:inherit;font-weight:600;
+  border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{opacity:1;border-bottom-color:var(--accent)}
+#result{scroll-margin-top:110px}
+header h1{white-space:nowrap}
+main{max-width:720px;margin:0 auto;padding:14px 16px 90px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 10px;font-weight:650}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:600}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--bg);color:var(--ink);padding:10px 4px;font:inherit;font-size:14px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font:inherit;font-size:14px;cursor:pointer}
+.chip.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.btns{display:flex;gap:8px;margin-top:14px}
+.btn{flex:1;border:0;border-radius:12px;padding:13px;font:inherit;font-weight:650;cursor:pointer;background:var(--brand);color:var(--brand-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.small{flex:0 0 auto;padding:9px 12px;font-size:14px}
+details summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600;margin-top:12px}
 
-  main{padding:14px 12px 100px;max-width:780px;margin:0 auto}
-  .toolbar{display:flex;gap:8px;align-items:center;margin:0 0 12px}
-  .toolbar input[type=search]{flex:1;padding:10px 14px;border:1px solid var(--line);
-    border-radius:12px;background:#fff;font-size:14px;outline:none}
-  .toolbar input[type=search]:focus{border-color:var(--accent)}
-
-  .list{display:flex;flex-direction:column;gap:10px}
-  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:12px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;
-    transition:transform .08s, border-color .15s}
-  .item:active{transform:scale(.99);border-color:var(--accent2)}
-  .item .thumb{width:62px;height:62px;border-radius:12px;background:#eaf3fa;overflow:hidden;
-    flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#9ab3c4;font-size:11px}
-  .item .thumb img{width:100%;height:100%;object-fit:cover}
-  .item .meta{flex:1;min-width:0}
-  .item .meta .t{font-weight:600;font-size:15.5px;margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .item .meta .s{color:var(--muted);font-size:12.5px;line-height:1.4}
-  .item .meta .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-  .chip{display:inline-block;background:var(--chip);color:var(--accent-d);font-size:11px;
-    padding:2px 9px;border-radius:99px;font-weight:500}
-  .empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:14px}
-  .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
-  .empty .hint{margin-top:14px;font-size:13px}
-
-  .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));
-    width:60px;height:60px;border-radius:50%;
-    background:linear-gradient(135deg,var(--accent2) 0%,var(--accent) 100%);color:#fff;
-    border:0;font-size:30px;line-height:1;
-    box-shadow:0 6px 18px rgba(2,132,199,.3);z-index:8;cursor:pointer}
-
-  .sheet-bg{position:fixed;inset:0;background:rgba(15,36,56,.45);z-index:20;
-    display:none;align-items:flex-end;justify-content:center}
-  .sheet-bg.show{display:flex}
-  .sheet{background:#fff;width:100%;max-width:780px;max-height:94vh;border-radius:18px 18px 0 0;
-    overflow:hidden;display:flex;flex-direction:column}
-  .sheet-h{display:flex;align-items:center;justify-content:center;
-    padding:14px 14px;border-bottom:1px solid var(--line);position:relative;background:#fff;z-index:2}
-  .sheet-h h2{margin:0;font-size:16px;font-weight:600}
-  .sheet-h .x{position:absolute;right:6px;top:50%;transform:translateY(-50%);
-    background:transparent;border:0;font-size:22px;padding:8px 12px;color:var(--muted);cursor:pointer;line-height:1}
-  .sheet-body{overflow:auto;padding:14px;flex:1;-webkit-overflow-scrolling:touch}
-  .sheet-f{display:flex;gap:10px;padding:12px 14px;
-    padding-bottom:calc(12px + env(safe-area-inset-bottom));
-    border-top:1px solid var(--line);background:#fff;z-index:3}
-  .sheet-f .btn{flex:1;padding:14px 18px;font-size:15.5px;font-weight:600;border-radius:12px}
-
-  label.f{display:block;margin:0 0 12px}
-  label.f>span{display:block;font-size:11.5px;font-weight:600;color:var(--accent-d);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
-  label.f input,label.f select,label.f textarea{
-    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-    font-size:15px;background:#fff;font-family:inherit;outline:none}
-  label.f textarea{min-height:74px;resize:vertical}
-  label.f input:focus,label.f select:focus,label.f textarea:focus{border-color:var(--accent)}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  @media(max-width:480px){.row3{grid-template-columns:1fr 1fr}}
-
-  .group{background:#f7fbfd;border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}
-  .group>h3{margin:0 0 10px;font-size:13px;color:var(--accent-d);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
-  .group>h3 small{font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px}
-
-  .price-conv{font-size:12.5px;color:var(--accent-d);margin-top:5px;font-weight:500}
-  .price-conv.empty{color:var(--muted);font-weight:400}
-
-  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
-  .photo{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#eaf3fa}
-  .photo img{width:100%;height:100%;object-fit:cover;display:block}
-  .photo button{position:absolute;top:4px;right:4px;background:rgba(15,36,56,.6);color:#fff;
-    border:0;width:22px;height:22px;border-radius:50%;font-size:14px;line-height:1;cursor:pointer}
-  .photo .badge{position:absolute;bottom:3px;left:3px;background:rgba(2,132,199,.9);color:#fff;
-    font-size:9.5px;padding:1px 6px;border-radius:99px;letter-spacing:.4px;display:flex;align-items:center;gap:3px}
-  .photo .badge.warn{background:rgba(194,65,12,.9)}
-  .add-photo{aspect-ratio:1;border:2px dashed #b9d2e4;border-radius:10px;background:#fff;
-    display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--muted);
-    font-size:11px;cursor:pointer}
-  .add-photo span{font-size:26px;color:var(--accent);font-weight:300;line-height:1}
-  .add-photo input{display:none}
-
-  .multi-row{display:flex;flex-direction:column;gap:6px}
-  .v-row{display:grid;grid-template-columns:1.2fr 1fr 1fr 28px;gap:6px;align-items:center}
-  .v-row input{padding:8px 10px;font-size:14px;border:1px solid var(--line);border-radius:8px;background:#fff}
-  .v-row button{background:transparent;border:0;color:var(--warn);font-size:18px;cursor:pointer;padding:0}
-  .add-row{background:var(--chip);border:0;color:var(--accent-d);padding:8px 12px;border-radius:8px;
-    font-size:13px;font-weight:600;cursor:pointer;margin-top:6px;align-self:flex-start}
-
-  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-  .btn{padding:11px 18px;border-radius:10px;border:1px solid var(--line);background:#fff;
-    font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit}
-  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn.primary:active{background:var(--accent-d)}
-  .btn.danger{color:var(--warn);border-color:#f1d4c2}
-  .btn.ghost{background:#f0f9ff;color:var(--accent-d);border-color:var(--line)}
-
-  .menu-list{position:fixed;top:56px;right:8px;background:#fff;border:1px solid var(--line);
-    border-radius:12px;box-shadow:0 8px 24px rgba(2,132,199,.15);z-index:30;min-width:240px;display:none;overflow:hidden}
-  .menu-list.show{display:block}
-  .menu-list button{display:block;width:100%;text-align:left;padding:12px 16px;background:transparent;
-    border:0;font-size:14.5px;cursor:pointer;border-bottom:1px solid var(--line);font-family:inherit}
-  .menu-list button:last-child{border-bottom:0}
-  .menu-list button.danger{color:var(--warn)}
-  .menu-list button:hover{background:#f0f9ff}
-  .menu-list .status{padding:9px 16px;background:#f7fbfd;font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--line)}
-  .menu-list .status b{color:var(--accent-d)}
-
-  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#0f2438;
-    color:#fff;padding:11px 18px;border-radius:99px;font-size:13.5px;z-index:50;opacity:0;
-    transition:opacity .2s;max-width:80%;text-align:center;pointer-events:none}
-  .toast.show{opacity:1}
-  .toast.err{background:var(--warn)}
-
-  .uploading{display:inline-block;width:9px;height:9px;border-radius:50%;
-    border:1.5px solid #fff;border-top-color:transparent;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  .pdf-render{display:none;background:#fff;color:#0f2438;
-    font:13px/1.5 -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;padding:30px}
-  body.printing > *:not(.pdf-render){display:none !important}
-  body.printing .pdf-render{display:block !important}
-  @media print{
-    @page{size:A4;margin:14mm}
-    body{background:#fff !important}
-    body > *:not(.pdf-render){display:none !important}
-    .pdf-render{display:block !important;padding:0 !important}
-  }
-  .pdf-render h1{font-size:24px;margin:0 0 6px;color:var(--accent-d)}
-  .pdf-render .sub{color:var(--muted);font-size:13px;margin-bottom:18px;border-bottom:2px solid var(--accent2);padding-bottom:10px}
-  .pdf-render h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-d);
-    margin:18px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--line)}
-  .pdf-render table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
-  .pdf-render table td{padding:6px 8px;vertical-align:top;border-bottom:1px solid var(--line)}
-  .pdf-render table td:first-child{width:32%;color:var(--muted);font-weight:500}
-  .pdf-render .ph-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
-  .pdf-render .ph-grid img{width:100%;border-radius:6px;border:1px solid var(--line)}
-  .pdf-render .notes-box{background:#f7fbfd;border:1px solid var(--line);border-radius:6px;
-    padding:10px 12px;font-size:13px;white-space:pre-wrap}
+.verdict{border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.verdict .big{font-size:26px;font-weight:750;line-height:1.15}
+.verdict .sub{margin-top:4px;font-size:14px}
+.v-low{background:var(--low-bg);color:var(--low)} .v-fair{background:var(--fair-bg);color:var(--fair)}
+.v-high{background:var(--high-bg);color:var(--high)} .v-way{background:var(--way-bg);color:var(--way)}
+.v-none{background:var(--none-bg);color:var(--none)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kpi{background:var(--card);border-radius:10px;padding:8px 10px;color:var(--ink)}
+.kpi b{display:block;font-size:15px}
+.kpi span{font-size:11px;color:var(--muted)}
+.strip{position:relative;height:46px;margin:22px 4px 6px}
+.strip .track{position:absolute;left:0;right:0;top:20px;height:6px;border-radius:3px;background:var(--line)}
+.strip .band{position:absolute;top:16px;height:14px;border-radius:7px;background:var(--fair-bg);border:1px solid var(--fair)}
+.strip .dot{position:absolute;top:18px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--muted)}
+.strip .med{position:absolute;top:12px;width:2px;height:22px;margin-left:-1px;background:var(--fair)}
+.strip .me{position:absolute;top:10px;width:18px;height:26px;margin-left:-9px;border-radius:6px;background:var(--accent);border:2px solid var(--card)}
+.strip .lab{position:absolute;top:-16px;font-size:11px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+.strip .ends{position:absolute;top:36px;font-size:11px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:650;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:8px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;white-space:nowrap}
+td small{display:block;color:var(--muted);font-size:11.5px}
+.tag{display:inline-block;font-size:10.5px;font-weight:650;border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:1px}
+.tag.stale{background:var(--high-bg);color:var(--high)} .tag.inq{background:var(--fair-bg);color:var(--fair)}
+.tag.pend{background:var(--none-bg);color:var(--none)}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0;padding-left:16px}
+.list-item{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.list-item:last-child{border-bottom:0}
+.pill{font-size:12px;font-weight:650;border-radius:999px;padding:3px 9px;white-space:nowrap;align-self:flex-start}
+.empty{color:var(--muted);text-align:center;padding:24px 8px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;z-index:9}
+.toast.on{opacity:1}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
-
 <header>
-  <div class="brand">
-    <h1>Canton Fair <small>Products</small></h1>
-    <button class="menu" id="menuBtn" aria-label="Menu">⋯</button>
-  </div>
+  <div class="top"><h1>Fabric Price Checker</h1><div id="status">—</div></div>
+  <nav>
+    <button data-tab="check" class="on">Check</button>
+    <button data-tab="list">Inquiries</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
 </header>
 
-<div class="menu-list" id="menuList">
-  <div class="status" id="driveStatus">Drive: <b>not connected</b></div>
-  <button id="setupDrive">Connect Google Drive</button>
-  <button id="rates">Exchange rates</button>
-  <button id="openDrive">Open Drive folder</button>
-  <button id="exportJson">Backup data (JSON)</button>
-  <button id="importJson">Restore from backup</button>
-  <button id="howto">How to use / Drive setup</button>
-  <button id="wipe" class="danger">Erase all data</button>
-</div>
-
 <main>
-  <div class="toolbar">
-    <input type="search" id="search" placeholder="Search products…">
+<!-- ============ CHECK ============ -->
+<section id="tab-check">
+  <div id="setupNote" class="card hidden">
+    <h2>Connect your Google Sheet</h2>
+    <div>Open <b>Settings</b> and paste the Apps Script URL and access key. Until then you can import a CSV export of the sheet.</div>
   </div>
-  <div id="list" class="list"></div>
+
+  <form id="form" class="card" autocomplete="off">
+    <h2>New quotation</h2>
+    <label for="f-desc">Description</label>
+    <input id="f-desc" placeholder="e.g. 90 GSM brushed microfiber, disperse print">
+
+    <div class="row">
+      <div><label for="f-cat">FG category</label><select id="f-cat"></select></div>
+      <div><label for="f-type">Construction</label>
+        <select id="f-type"><option>Woven</option><option>Knitted</option><option>Tufted</option><option>Non-woven</option></select></div>
+    </div>
+
+    <label for="f-mat">Material</label>
+    <input id="f-mat" list="mat-list" placeholder="Polyester, Cotton, Tencel, Chenille…">
+    <datalist id="mat-list"></datalist>
+
+    <label>Finish</label>
+    <div class="chips" id="f-finish"></div>
+
+    <label>Source</label>
+    <div class="seg" id="f-source"><button type="button" data-v="Import" class="on">Import</button><button type="button" data-v="Local">Local</button></div>
+
+    <div class="row">
+      <div><label for="f-gsm">GSM</label><input id="f-gsm" type="number" inputmode="decimal" placeholder="90"></div>
+      <div><label for="f-width">Width (cm)</label><input id="f-width" type="number" inputmode="decimal" placeholder="265"></div>
+    </div>
+    <div class="hint">GSM + width lets it compare per kg (fairest). Without GSM it falls back to per m².</div>
+
+    <div class="row">
+      <div><label for="f-price">Price</label><input id="f-price" type="number" inputmode="decimal" step="any" placeholder="4.50"></div>
+      <div><label>Currency</label>
+        <div class="seg" id="f-cur"><button type="button" data-v="RMB" class="on">¥</button><button type="button" data-v="USD">$</button><button type="button" data-v="IDR">Rp</button></div></div>
+    </div>
+    <label>Price is per</label>
+    <div class="seg" id="f-unit"><button type="button" data-v="m" class="on">metre</button><button type="button" data-v="kg">kg</button><button type="button" data-v="yard">yard</button><button type="button" data-v="sqm">m²</button></div>
+
+    <div class="row">
+      <div><label for="f-vendor">Vendor</label><input id="f-vendor" list="vendor-list" placeholder="Supplier name"><datalist id="vendor-list"></datalist></div>
+      <div><label for="f-moq">MOQ</label><input id="f-moq" placeholder="e.g. 5000 m/color"></div>
+    </div>
+
+    <details>
+      <summary>Date, fair & notes</summary>
+      <div class="row">
+        <div><label for="f-date">Quote date</label><input id="f-date" type="date"></div>
+        <div><label for="f-event">Fair / event</label><input id="f-event" placeholder="e.g. Intertextile 2026"></div>
+      </div>
+      <label for="f-notes">Notes</label>
+      <textarea id="f-notes" rows="2" placeholder="Container price, tier, sample promised…"></textarea>
+    </details>
+
+    <div class="btns">
+      <button type="button" class="btn ghost" id="btn-check">Check only</button>
+      <button type="submit" class="btn" id="btn-save">Check &amp; save</button>
+    </div>
+  </form>
+
+  <div id="result"></div>
+</section>
+
+<!-- ============ LIST ============ -->
+<section id="tab-list" class="hidden">
+  <div class="card">
+    <h2>Saved inquiries</h2>
+    <input id="search" placeholder="Search vendor, fabric, fair…">
+    <div id="inq-list"></div>
+  </div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section id="tab-settings" class="hidden">
+  <div class="card">
+    <h2>Google Sheet connection</h2>
+    <label for="s-url">Apps Script web app URL</label>
+    <input id="s-url" placeholder="https://script.google.com/macros/s/…/exec">
+    <label for="s-key">Access key</label>
+    <input id="s-key" type="password" placeholder="Same as ACCESS_KEY in Code.gs">
+    <div class="hint">Stored only on this device, never in the code on GitHub.</div>
+    <div class="btns"><button class="btn" id="s-save">Save &amp; load live data</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Exchange rates (IDR)</h2>
+    <div class="row">
+      <div><label for="s-rmb">1 RMB =</label><input id="s-rmb" type="number" inputmode="decimal"></div>
+      <div><label for="s-usd">1 USD =</label><input id="s-usd" type="number" inputmode="decimal"></div>
+    </div>
+    <div class="hint" id="sheet-rates"></div>
+    <div class="btns"><button class="btn ghost small" id="s-use-sheet">Use rates from sheet</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Scoring</h2>
+    <div class="row">
+      <div><label for="s-half">Half-life (months)</label><input id="s-half" type="number" inputmode="decimal"></div>
+      <div><label for="s-stale">Stale after (months)</label><input id="s-stale" type="number" inputmode="decimal"></div>
+    </div>
+    <div class="hint">A quote one half-life old counts half as much as today's. Undated quotes count about a third.</div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)">
+      <input type="checkbox" id="s-inq" style="width:auto"> Use saved fair inquiries as references too</label>
+    <div class="btns"><button class="btn" id="s-save2">Save scoring settings</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Reference data</h2>
+    <div id="data-info" class="hint" style="font-size:13.5px"></div>
+    <div class="btns">
+      <button class="btn ghost small" id="s-refresh">Refresh now</button>
+      <label class="btn ghost small" style="margin:0;text-align:center">Import CSV<input type="file" id="s-csv" accept=".csv,text/csv" class="hidden"></label>
+    </div>
+  </div>
+</section>
 </main>
-
-<button class="fab" id="addBtn" aria-label="Add">+</button>
-
-<div class="sheet-bg" id="sheetBg">
-  <div class="sheet">
-    <div class="sheet-h">
-      <h2 id="sheetTitle">New product</h2>
-      <button class="x" id="closeX" aria-label="Close">×</button>
-    </div>
-    <div class="sheet-body" id="sheetBody"></div>
-    <div class="sheet-f">
-      <button class="btn ghost" id="backBtn">← Back</button>
-      <button class="btn primary" id="saveBtn">Save</button>
-    </div>
-  </div>
-</div>
-
-<input type="file" id="restoreFile" accept="application/json" style="display:none">
-<div class="pdf-render" id="pdfRender"></div>
 <div class="toast" id="toast"></div>
 
+<script src="engine.js"></script>
 <script>
-/* =================== STORAGE =================== */
-const DB = (() => {
-  let dbp;
-  function open(){
-    if(dbp) return dbp;
-    dbp = new Promise((res,rej)=>{
-      const req = indexedDB.open('cantonprod',1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if(!db.objectStoreNames.contains('products')) db.createObjectStore('products',{keyPath:'id'});
-      };
-      req.onsuccess = e => res(e.target.result);
-      req.onerror = e => rej(e.target.error);
+(function () {
+'use strict';
+var E = window.FabricEngine;
+var LS = { settings: 'fpc.settings', cache: 'fpc.cache', queue: 'fpc.queue', form: 'fpc.form' };
+function lsGet(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+var settings = Object.assign({}, E.DEFAULTS, { url: '', key: '' }, lsGet(LS.settings, {}));
+var cache = lsGet(LS.cache, null) || { table: null, inquiries: [], fetchedAt: null, from: null };
+var queue = lsGet(LS.queue, []);
+var quotes = [], inqRecs = [], pool = [], sheetRates = null, lastError = '', loading = false;
+var lastResult = null;
+
+var FINISHES = ['Solid', 'Print', 'Digital print', 'Emboss', 'Washed', 'Brushed', 'Coated / TPU', 'Hotmelt', 'Jacquard', 'Quick dry', 'Fire retardant'];
+var CUR_SYM = { RMB: '¥', USD: '$', IDR: 'Rp' };
+var UNIT_LBL = { m: 'm', kg: 'kg', yard: 'yd', sqm: 'm²' };
+
+// ---------- data ----------
+function rebuild() {
+  quotes = []; sheetRates = null;
+  if (cache.table) {
+    try { var p = E.parseQuoteTable(cache.table, settings); quotes = p.quotes; sheetRates = p.sheetRates; }
+    catch (e) { lastError = e.message; }
+  }
+  var allInq = (cache.inquiries || []).concat(queue);
+  inqRecs = allInq.filter(function (o) { return E.num(o.price) != null; }).map(function (o) { return E.inquiryRecord(o, settings); });
+  pool = quotes.concat(settings.includeInquiries ? inqRecs : []);
+  fillLists(); renderStatus(); renderList(); renderDataInfo();
+}
+
+function fetchData() {
+  if (!settings.url || !settings.key) { renderStatus(); return Promise.resolve(); }
+  loading = true; renderStatus();
+  return fetch(settings.url + (settings.url.indexOf('?') < 0 ? '?' : '&') + 'key=' + encodeURIComponent(settings.key))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.ok) throw new Error(j.error || 'Sheet error');
+      cache = { table: j.table, inquiries: j.inquiries || [], fetchedAt: j.fetchedAt, from: 'sheet: ' + j.sheet };
+      lsSet(LS.cache, cache); lastError = '';
+      // drop queued items the sheet already has
+      var ids = {}; cache.inquiries.forEach(function (o) { ids[o.id] = 1; });
+      queue = queue.filter(function (q) { return !ids[q.id]; }); lsSet(LS.queue, queue);
+    })
+    .catch(function (e) { lastError = navigator.onLine ? e.message : 'Offline'; })
+    .then(function () { loading = false; rebuild(); return syncQueue(); });
+}
+
+function syncQueue() {
+  if (!settings.url || !queue.length || !navigator.onLine) { renderStatus(); return Promise.resolve(); }
+  var pending = queue.slice(), chain = Promise.resolve();
+  pending.forEach(function (q) {
+    chain = chain.then(function () {
+      return fetch(settings.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ key: settings.key, action: 'addInquiry', inquiry: q }) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j.ok) throw new Error(j.error);
+          queue = queue.filter(function (x) { return x.id !== q.id; });
+          cache.inquiries = (cache.inquiries || []).concat([q]);
+          lsSet(LS.queue, queue); lsSet(LS.cache, cache);
+        })
+        .catch(function (e) { lastError = 'Sync: ' + e.message; });
     });
-    return dbp;
-  }
-  return {
-    async all(){
-      const db = await open();
-      return new Promise(res=>{
-        const out=[];
-        db.transaction('products').objectStore('products').openCursor().onsuccess = e=>{
-          const c=e.target.result; if(c){out.push(c.value); c.continue();} else res(out);
-        };
-      });
-    },
-    async put(val){
-      const db = await open();
-      return new Promise((res,rej)=>{
-        const r = db.transaction('products','readwrite').objectStore('products').put(val);
-        r.onsuccess=()=>res(val); r.onerror=()=>rej(r.error);
-      });
-    },
-    async del(id){
-      const db = await open();
-      return new Promise((res,rej)=>{
-        const r = db.transaction('products','readwrite').objectStore('products').delete(id);
-        r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
-      });
-    },
-    async clear(){
-      const db = await open();
-      return new Promise(r=>{
-        db.transaction('products','readwrite').objectStore('products').clear().onsuccess=()=>r();
-      });
-    }
-  };
-})();
-
-const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
-const escapeHtml = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-function toast(msg, err){ const t=$('#toast'); t.textContent=msg; t.classList.toggle('err', !!err); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
-
-/* =================== RATES =================== */
-const DEFAULT_RATES = { USD_IDR:16000, CNY_IDR:2500, EUR_IDR:17500 };
-function getRates(){
-  try{
-    const r = JSON.parse(localStorage.getItem('rates')||'{}');
-    return { ...DEFAULT_RATES, ...r };
-  }catch{ return {...DEFAULT_RATES}; }
-}
-function setRates(r){ localStorage.setItem('rates', JSON.stringify(r)); }
-function calcIDR(price, currency){
-  const p = parseFloat(price);
-  if(!p || !currency || currency==='IDR') return null;
-  const r = getRates();
-  const rate = r[currency+'_IDR'];
-  if(!rate) return null;
-  return Math.round(p * rate);
-}
-function fmtIDR(n){ return n.toLocaleString('id-ID'); }
-
-/* =================== STATE =================== */
-const state = { products:[], editing:null, search:'' };
-
-async function reload(){
-  state.products = await DB.all();
-  render();
-}
-
-/* =================== DRIVE / SHEET (Apps Script) =================== */
-const Drive = {
-  get url(){ return localStorage.getItem('drive_url') || ''; },
-  set url(v){ localStorage.setItem('drive_url', v); updateDriveStatus(); },
-  get connected(){ return !!this.url; },
-
-  async uploadPhoto(base64, filename){
-    if(!this.url) return null;
-    const data = base64.replace(/^data:image\/\w+;base64,/,'');
-    const mime = (base64.match(/^data:(image\/\w+);base64,/)||[])[1] || 'image/jpeg';
-    const body = JSON.stringify({ action:'photo', filename, mimeType:mime, image:data, folder:'Canton Fair Photos' });
-    try{
-      const res = await fetch(this.url, { method:'POST', body });
-      try{
-        const j = await res.json();
-        if(j && j.ok) return j;
-      }catch{}
-      return { ok:true, optimistic:true };
-    }catch(err){
-      console.warn('upload error', err);
-      return { ok:true, optimistic:true };
-    }
-  },
-
-  syncProduct(product){
-    if(!this.url) return;
-    const slim = stripPhotos(product);
-    fetch(this.url, {
-      method:'POST', mode:'no-cors',
-      body: JSON.stringify({ action:'syncProduct', product: slim })
-    }).catch(err=>console.warn('sync error', err));
-  },
-
-  deleteProduct(id){
-    if(!this.url) return;
-    fetch(this.url, {
-      method:'POST', mode:'no-cors',
-      body: JSON.stringify({ action:'deleteProduct', id })
-    }).catch(()=>{});
-  }
-};
-function stripPhotos(p){
-  return {
-    id: p.id, updatedAt: p.updatedAt,
-    name: p.name, supplierName: p.supplierName, supplierBooth: p.supplierBooth, supplierContact: p.supplierContact,
-    factoryLoc: p.factoryLoc, nearestPort: p.nearestPort,
-    category: p.category, description: p.description,
-    price: p.price, currency: p.currency, priceIDR: calcIDR(p.price, p.currency),
-    moq: p.moq, leadTime: p.leadTime,
-    itemW: p.itemW, itemL: p.itemL, itemH: p.itemH,
-    weightG: p.weightG, gsm: p.gsm, material: p.material,
-    pkgW: p.pkgW, pkgL: p.pkgL, pkgH: p.pkgH,
-    pkgMaterial: p.pkgMaterial, pkgNotes: p.pkgNotes,
-    sampleStatus: p.sampleStatus, sampleCost: p.sampleCost,
-    variants: p.variants||[],
-    notes: p.notes,
-    photoUrls: (p.photos||[]).map(ph=>ph.driveUrl||'').filter(Boolean)
-  };
-}
-function updateDriveStatus(){
-  const el = $('#driveStatus');
-  if(!el) return;
-  el.innerHTML = 'Drive: ' + (Drive.connected ? '<b style="color:var(--ok)">connected</b>' : '<b>not connected</b>');
-}
-
-/* =================== HELPERS =================== */
-async function fileToCompressed(file, maxDim=1280, quality=.72){
-  const img = await new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=e=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=e.target.result; };
-    r.onerror=rej; r.readAsDataURL(file);
   });
-  let {width:w,height:h}=img;
-  if(w>maxDim||h>maxDim){ const r=Math.min(maxDim/w,maxDim/h); w=Math.round(w*r); h=Math.round(h*r); }
-  const c=document.createElement('canvas'); c.width=w; c.height=h;
-  c.getContext('2d').drawImage(img,0,0,w,h);
-  return c.toDataURL('image/jpeg', quality);
+  return chain.then(rebuild);
+}
+window.addEventListener('online', function () { syncQueue(); });
+
+// ---------- status ----------
+function ago(iso) {
+  if (!iso) return '';
+  var m = Math.round((Date.now() - new Date(iso)) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago';
+}
+function renderStatus() {
+  var parts = [];
+  if (loading) parts.push('Loading…');
+  else if (quotes.length) parts.push(quotes.length + ' quotes' + (cache.fetchedAt ? ' · ' + ago(cache.fetchedAt) : ''));
+  else parts.push('No data');
+  if (queue.length) parts.push(queue.length + ' to sync');
+  if (lastError && !loading) parts.push('⚠ ' + lastError);
+  $('status').textContent = parts.join(' · ');
+  $('setupNote').classList.toggle('hidden', !!(settings.url || quotes.length));
 }
 
-/* =================== RENDER LIST =================== */
-function render(){
-  let items = state.products.slice();
-  if(state.search){
-    const q = state.search.toLowerCase();
-    items = items.filter(x=>JSON.stringify(x).toLowerCase().includes(q));
-  }
-  items.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  const list = $('#list');
-  if(!items.length){
-    list.innerHTML = `<div class="empty">
-      <b>No products yet</b>
-      Tap <span style="background:var(--accent);color:#fff;padding:2px 9px;border-radius:99px">+</span> to add your first product.
-      <div class="hint">Each entry holds photos, supplier info, prices, variants, and notes — and exports as a PDF.</div>
-    </div>`;
-    return;
-  }
-  list.innerHTML = items.map(it=>renderCard(it)).join('');
-  $$('#list .item').forEach(el=>{
-    el.addEventListener('click',()=>edit(el.dataset.id));
+// ---------- form ----------
+function segInit(id) {
+  $(id).addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    [].forEach.call(this.children, function (c) { c.classList.toggle('on', c === b); });
   });
 }
-function renderCard(it){
-  const ph = (it.photos&&it.photos[0]);
-  const thumb = ph ? `<img src="${ph.data || ph.driveThumbnail || ''}">` : 'no photo';
-  const sub = [it.supplierName, it.category].filter(Boolean).join(' · ') || 'Tap to fill in';
-  const chips = [];
-  if(it.price){
-    const idr = calcIDR(it.price, it.currency);
-    chips.push(`${it.currency||'USD'} ${it.price}${idr?` ≈ IDR ${fmtIDR(idr)}`:''}`);
-  }
-  if(it.moq) chips.push(`MOQ ${escapeHtml(it.moq)}`);
-  if(it.leadTime) chips.push(`LT ${escapeHtml(it.leadTime)}`);
-  if(it.variants && it.variants.length) chips.push(`${it.variants.length} variants`);
-  return `<div class="item" data-id="${it.id}">
-    <div class="thumb">${thumb}</div>
-    <div class="meta">
-      <p class="t">${escapeHtml(it.name||'(unnamed)')}</p>
-      <div class="s">${escapeHtml(sub)}</div>
-      <div class="chips">${chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div>
-    </div>
-  </div>`;
+function segVal(id) { var b = $(id).querySelector('.on'); return b ? b.dataset.v : ''; }
+function segSet(id, v) { [].forEach.call($(id).children, function (c) { c.classList.toggle('on', c.dataset.v === v); }); }
+['f-source', 'f-cur', 'f-unit'].forEach(segInit);
+
+$('f-finish').innerHTML = FINISHES.map(function (f) { return '<button type="button" class="chip" data-v="' + esc(f) + '">' + esc(f) + '</button>'; }).join('');
+$('f-finish').addEventListener('click', function (e) { var b = e.target.closest('.chip'); if (b) b.classList.toggle('on'); });
+
+function fillLists() {
+  var cats = {}, mats = {}, vends = {};
+  pool.forEach(function (q) {
+    String(q.category).split('/').forEach(function (c) { c = c.trim(); if (c) cats[c] = 1; });
+    if (q.material) mats[q.material] = 1;
+    if (q.vendor && !/^https?:/.test(q.vendor)) vends[q.vendor] = 1;
+  });
+  var cur = $('f-cat').value;
+  var list = Object.keys(cats).sort();
+  if (!list.length) list = ['Bedding', 'Blanket', 'Bath Mat', 'Curtain', 'Carpet', 'Cleaning Cloth'];
+  $('f-cat').innerHTML = list.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+  if (cur && list.indexOf(cur) >= 0) $('f-cat').value = cur;
+  $('mat-list').innerHTML = Object.keys(mats).sort().map(function (m) { return '<option value="' + esc(m) + '">'; }).join('');
+  $('vendor-list').innerHTML = Object.keys(vends).sort().map(function (m) { return '<option value="' + esc(m) + '">'; }).join('');
 }
 
-/* =================== EDIT FORM =================== */
-function blank(){
+function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+function readForm() {
   return {
-    id:uid(), createdAt:Date.now(), updatedAt:Date.now(),
-    name:'', supplierName:'', supplierBooth:'', supplierContact:'',
-    factoryLoc:'', nearestPort:'',
-    category:'', description:'',
-    price:'', currency:'USD', moq:'', leadTime:'',
-    itemW:'', itemL:'', itemH:'', weightG:'', gsm:'', material:'',
-    pkgW:'', pkgL:'', pkgH:'', pkgMaterial:'', pkgNotes:'',
-    sampleStatus:'', sampleCost:'',
-    variants:[], notes:'', photos:[]
+    description: $('f-desc').value.trim(), category: $('f-cat').value, fabricType: $('f-type').value,
+    material: $('f-mat').value.trim(),
+    finish: [].map.call($('f-finish').querySelectorAll('.on'), function (b) { return b.dataset.v; }).join(', '),
+    source: segVal('f-source'), gsm: $('f-gsm').value, width: $('f-width').value,
+    price: $('f-price').value, currency: segVal('f-cur'), unit: segVal('f-unit'),
+    vendor: $('f-vendor').value.trim(), moq: $('f-moq').value.trim(),
+    date: $('f-date').value || today(), event: $('f-event').value.trim(), notes: $('f-notes').value.trim()
   };
 }
-function edit(id){
-  const item = id ? state.products.find(x=>x.id===id) : blank();
-  state.editing = JSON.parse(JSON.stringify(item));
-  $('#sheetTitle').textContent = id ? 'Edit product' : 'New product';
-  $('#sheetBody').innerHTML = formHtml(state.editing);
-  bindFormEvents();
-  updatePriceConv();
-  $('#sheetBg').classList.add('show');
-}
-function close(){ $('#sheetBg').classList.remove('show'); state.editing=null; }
-
-function formHtml(it){
-  const isExisting = state.products.find(p=>p.id===it.id);
-  return `
-    <div class="group"><h3>Photos</h3>
-      <div class="photos" id="photos">
-        ${renderPhotos(it.photos||[])}
-        <label class="add-photo"><span>+</span>add photo
-          <input type="file" accept="image/*" capture="environment" multiple id="photoInput">
-        </label>
-      </div>
-      ${!Drive.connected ? '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Photos are local. Connect Drive (top-right ⋯) to also save to your Google Drive.</div>' : ''}
-    </div>
-
-    <div class="group"><h3>Basics</h3>
-      <label class="f"><span>Product name *</span><input data-k="name" value="${escapeHtml(it.name)}" placeholder="e.g. velvet 3-seater sofa"></label>
-      <div class="row2">
-        <label class="f"><span>Supplier name</span><input data-k="supplierName" value="${escapeHtml(it.supplierName)}" placeholder="company name"></label>
-        <label class="f"><span>Booth #</span><input data-k="supplierBooth" value="${escapeHtml(it.supplierBooth)}"></label>
-      </div>
-      <label class="f"><span>Supplier contact</span><input data-k="supplierContact" value="${escapeHtml(it.supplierContact)}" placeholder="person · phone · WeChat · email"></label>
-      <div class="row2">
-        <label class="f"><span>Factory location</span><input data-k="factoryLoc" value="${escapeHtml(it.factoryLoc)}" placeholder="e.g. Foshan, Guangdong"></label>
-        <label class="f"><span>Nearest port</span><input data-k="nearestPort" value="${escapeHtml(it.nearestPort)}" placeholder="e.g. Shenzhen, Ningbo"></label>
-      </div>
-      <div class="row2">
-        <label class="f"><span>Category</span><input data-k="category" value="${escapeHtml(it.category)}" placeholder="e.g. sofa, lamp"></label>
-        <label class="f"><span>Short description</span><input data-k="description" value="${escapeHtml(it.description)}"></label>
-      </div>
-    </div>
-
-    <div class="group"><h3>Price & Terms</h3>
-      <div class="row3">
-        <label class="f"><span>Price</span>
-          <input data-k="price" id="priceIn" type="number" step="0.01" inputmode="decimal" value="${escapeHtml(it.price)}">
-        </label>
-        <label class="f"><span>Currency</span>
-          <select data-k="currency" id="currencyIn">${['USD','CNY','EUR','IDR'].map(c=>`<option ${it.currency===c?'selected':''}>${c}</option>`).join('')}</select>
-        </label>
-        <label class="f"><span>MOQ</span><input data-k="moq" value="${escapeHtml(it.moq)}"></label>
-      </div>
-      <div class="price-conv empty" id="priceConv"></div>
-      <label class="f" style="margin-top:8px"><span>Lead time</span><input data-k="leadTime" value="${escapeHtml(it.leadTime)}" placeholder="e.g. 35 days"></label>
-    </div>
-
-    <div class="group"><h3>Item Specs</h3>
-      <label class="f"><span>Dimensions (cm) — W × L × H</span>
-        <div class="row3">
-          <input data-k="itemW" type="number" inputmode="decimal" placeholder="Width" value="${escapeHtml(it.itemW)}">
-          <input data-k="itemL" type="number" inputmode="decimal" placeholder="Length" value="${escapeHtml(it.itemL)}">
-          <input data-k="itemH" type="number" inputmode="decimal" placeholder="Height" value="${escapeHtml(it.itemH)}">
-        </div>
-      </label>
-      <div class="row2">
-        <label class="f"><span>Weight (g)</span><input data-k="weightG" type="number" inputmode="decimal" value="${escapeHtml(it.weightG)}"></label>
-        <label class="f"><span>GSM</span><input data-k="gsm" type="number" inputmode="decimal" value="${escapeHtml(it.gsm)}" placeholder="for fabrics"></label>
-      </div>
-      <label class="f"><span>Material</span><input data-k="material" value="${escapeHtml(it.material)}" placeholder="e.g. velvet, oak, ABS"></label>
-    </div>
-
-    <div class="group"><h3>Packaging</h3>
-      <label class="f"><span>Packaging dimensions (cm) — W × L × H</span>
-        <div class="row3">
-          <input data-k="pkgW" type="number" inputmode="decimal" placeholder="Width" value="${escapeHtml(it.pkgW)}">
-          <input data-k="pkgL" type="number" inputmode="decimal" placeholder="Length" value="${escapeHtml(it.pkgL)}">
-          <input data-k="pkgH" type="number" inputmode="decimal" placeholder="Height" value="${escapeHtml(it.pkgH)}">
-        </div>
-      </label>
-      <label class="f"><span>Packaging material</span><input data-k="pkgMaterial" value="${escapeHtml(it.pkgMaterial)}" placeholder="e.g. carton box, bubble wrap, foam"></label>
-      <label class="f"><span>Packaging notes</span><textarea data-k="pkgNotes" rows="2">${escapeHtml(it.pkgNotes)}</textarea></label>
-    </div>
-
-    <div class="group"><h3>Variants <small>(color/size/SKU)</small></h3>
-      <div class="multi-row" id="variants">
-        ${(it.variants||[]).map((v,i)=>variantRow(v,i)).join('')}
-      </div>
-      <button class="add-row" id="addVariant">+ Add variant</button>
-    </div>
-
-    <div class="group"><h3>Sample</h3>
-      <div class="row2">
-        <label class="f"><span>Sample status</span>
-          <select data-k="sampleStatus">
-            ${['','Not requested','Requested','Received','In transit','Approved','Rejected'].map(s=>`<option ${it.sampleStatus===s?'selected':''} value="${s}">${s||'—'}</option>`).join('')}
-          </select>
-        </label>
-        <label class="f"><span>Sample cost</span><input data-k="sampleCost" value="${escapeHtml(it.sampleCost)}"></label>
-      </div>
-    </div>
-
-    <div class="group"><h3>Notes</h3>
-      <label class="f"><span>Free notes</span><textarea data-k="notes" rows="5">${escapeHtml(it.notes)}</textarea></label>
-    </div>
-
-    <div class="actions">
-      <button class="btn primary" data-act="pdf">📄 Save as PDF</button>
-      ${isExisting ? `<button class="btn danger" data-act="del">Delete</button>` : ''}
-    </div>
-  `;
+function writeForm(o) {
+  $('f-desc').value = o.description || ''; if (o.category) $('f-cat').value = o.category;
+  $('f-type').value = E.construction(o.fabricType) || 'Woven'; $('f-mat').value = o.material || '';
+  var fin = String(o.finish || '').split(',').map(function (s) { return s.trim(); });
+  [].forEach.call($('f-finish').children, function (b) { b.classList.toggle('on', fin.indexOf(b.dataset.v) >= 0); });
+  segSet('f-source', o.source || 'Import'); $('f-gsm').value = o.gsm || ''; $('f-width').value = o.width || '';
+  $('f-price').value = o.price || ''; segSet('f-cur', o.currency || 'RMB'); segSet('f-unit', o.unit || 'm');
+  $('f-vendor').value = o.vendor || ''; $('f-moq').value = o.moq || '';
+  $('f-date').value = String(o.date || '').slice(0, 10); $('f-event').value = o.event || ''; $('f-notes').value = o.notes || '';
 }
 
-function renderPhotos(photos){
-  return photos.map((p,i)=>{
-    const src = p.data || p.driveThumbnail || '';
-    let badge = '';
-    if(p.driveId || p.driveUploaded) badge = '<span class="badge">Drive ✓</span>';
-    else if(p.uploading) badge = '<span class="badge"><span class="uploading"></span>sync</span>';
-    else if(p.uploadFailed) badge = '<span class="badge warn">no sync</span>';
-    return `<div class="photo">
-      <img src="${src}">
-      ${badge}
-      <button data-photo="${i}">×</button>
-    </div>`;
+function run(save) {
+  var o = readForm();
+  if (!o.price) { toast('Enter the quoted price'); $('f-price').focus(); return; }
+  if (!o.description) o.description = [o.gsm ? o.gsm + ' GSM' : '', o.material, o.finish].filter(Boolean).join(' ');
+  o.id = 'inq-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  var rec = E.inquiryRecord(o, settings);
+  var res = E.analyze(rec, pool, settings, new Date());
+  lastResult = { o: o, rec: rec, res: res };
+  renderResult(o, rec, res);
+  // remember sticky fields for the next booth
+  lsSet(LS.form, { category: o.category, fabricType: o.fabricType, source: o.source, currency: o.currency, unit: o.unit, event: o.event });
+  if (save && !res.error) saveInquiry(o, rec, res);
+}
+
+function saveInquiry(o, rec, res) {
+  var inq = Object.assign({}, o, {
+    savedAt: new Date().toISOString(),
+    idrM: round(rec.idrM), idrKg: round(rec.idrKg), idrSqm: round(rec.idrSqm),
+    metric: res.metric, verdict: res.verdict ? res.verdict.label : '',
+    percentile: res.pct != null ? Math.round(res.pct * 100) : '', median: round(res.median),
+    peers: res.peers ? res.peers.length : 0, confidence: res.confidence || '',
+    rateRmb: settings.rmb, rateUsd: settings.usd
+  });
+  queue.push(inq); lsSet(LS.queue, queue);
+  rebuild();
+  toast(settings.url ? (navigator.onLine ? 'Saved — syncing to sheet' : 'Saved offline — will sync') : 'Saved on this device (no sheet connected)');
+  syncQueue();
+}
+function round(v) { return v == null ? '' : Math.round(v); }
+
+$('form').addEventListener('submit', function (e) { e.preventDefault(); run(true); });
+$('btn-check').addEventListener('click', function () { run(false); });
+
+// ---------- result ----------
+function rp(v) { return v == null ? '—' : 'Rp' + Math.round(v).toLocaleString('en-US'); }
+function per(m) { return m === 'kg' ? '/kg' : m === 'sqm' ? '/m²' : '/m'; }
+function orig(v, cur, unit) {
+  if (v == null) return '—';
+  var d = cur === 'IDR' ? 0 : v < 10 ? 2 : 1;
+  return (cur === 'IDR' ? 'Rp' + Math.round(v).toLocaleString('en-US') : CUR_SYM[cur] + v.toFixed(d)) + '/' + UNIT_LBL[unit];
+}
+function ageText(a) { return a == null ? 'no date' : a < 1 ? 'this month' : Math.round(a) + ' mo ago'; }
+
+function renderResult(o, rec, r) {
+  var el = $('result');
+  if (r.error) { el.innerHTML = '<div class="verdict v-none"><div class="big">Can’t compare yet</div><div class="sub">' + esc(r.error) + '</div></div>'; return; }
+  var v = r.verdict, h = '';
+  var sub = r.median != null
+    ? (r.deltaPct >= 0 ? '+' : '') + Math.round(r.deltaPct * 100) + '% vs peer median · ' + Math.round(r.pct * 100) + 'th percentile'
+    : 'Nothing comparable in the list yet';
+  h += '<div class="verdict v-' + v.key + '"><div class="big">' + esc(v.label) + '</div><div class="sub">' + esc(sub) + '</div>';
+  h += '<div class="kpis">' +
+    '<div class="kpi"><span>This quote</span><b>' + rp(r.value) + per(r.metric) + '</b><span>' + esc(orig(o.price * 1, o.currency, o.unit)) + '</span></div>' +
+    '<div class="kpi"><span>Peer median</span><b>' + rp(r.median) + per(r.metric) + '</b><span>' + (r.peers.length) + ' quotes</span></div>' +
+    '<div class="kpi"><span>Ask for</span><b>' + (r.target ? esc(orig(r.target.median, r.target.currency, r.target.unit)) : '—') + '</b><span>' + (r.target ? 'good: ' + esc(orig(r.target.p25, r.target.currency, r.target.unit)) : '') + '</span></div>' +
+    '</div></div>';
+
+  if (r.peers.length) {
+    // position strip
+    var lo = Math.min(r.min, r.value), hi = Math.max(r.max, r.value), span = hi - lo || 1;
+    var pos = function (x) { return (4 + 92 * (x - lo) / span).toFixed(2) + '%'; };
+    var maxW = Math.max.apply(null, r.peers.map(function (p) { return p.w; }));
+    h += '<div class="card"><h2>Where it sits</h2><div class="strip"><div class="track"></div>' +
+      '<div class="band" style="left:' + pos(r.p25) + ';width:calc(' + pos(r.p75) + ' - ' + pos(r.p25) + ')"></div>' +
+      r.peers.map(function (p) { return '<div class="dot" title="' + esc(p.rec.vendor) + '" style="left:' + pos(p.value) + ';opacity:' + (0.3 + 0.7 * p.w / maxW).toFixed(2) + '"></div>'; }).join('') +
+      '<div class="med" style="left:' + pos(r.median) + '"></div><div class="lab" style="left:' + pos(r.median) + '">median</div>' +
+      '<div class="me" style="left:' + pos(r.value) + '"></div>' +
+      '<div class="ends" style="left:0">' + rp(lo) + '</div><div class="ends" style="right:0">' + rp(hi) + '</div>' +
+      '</div><div class="hint">Shaded band = middle 50% of comparable quotes (25th–75th percentile). Fainter dots count less (older or less similar).</div>';
+    h += '<div class="hint" style="margin-top:8px"><b>Confidence: ' + esc(r.confidence) + '</b></div>';
+    if (r.reasons.length) h += '<ul class="note">' + r.reasons.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    h += '</div>';
+
+    // peers
+    h += '<div class="card"><h2>Compared with</h2><table><thead><tr><th>Fabric</th><th class="n">GSM</th><th class="n">' + per(r.metric).slice(1) + '</th><th class="n">Match</th></tr></thead><tbody>' +
+      r.peers.map(function (p) {
+        var q = p.rec, tags = '';
+        if (q.origin === 'inquiry') tags += '<span class="tag inq">fair</span>';
+        if (p.age == null || p.age > settings.staleMonths) tags += '<span class="tag stale">' + (p.age == null ? 'undated' : 'old') + '</span>';
+        return '<tr><td>' + esc(q.description) + tags + '<small>' + esc(q.vendor.replace(/^https?:\/\/\S+/, 'link')) + ' · ' + ageText(p.age) + (q.moq ? ' · MOQ ' + esc(q.moq) : '') + '</small></td>' +
+          '<td class="n">' + (q.gsm || '—') + '</td><td class="n">' + rp(p.value) + '</td><td class="n">' + Math.round(p.sim * 100) + '%</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  } else if (r.reasons.length) {
+    h += '<div class="card"><ul class="note">' + r.reasons.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  }
+
+  if ((r.vendorHistory && r.vendorHistory.length) || r.otherSource) {
+    h += '<div class="card"><h2>Also useful</h2>';
+    if (r.vendorHistory && r.vendorHistory.length) {
+      h += '<div style="font-weight:600;margin-bottom:4px">This vendor quoted before</div><table><tbody>' +
+        r.vendorHistory.map(function (x) { return '<tr><td>' + esc(x.rec.description) + '<small>' + [x.rec.gsm ? x.rec.gsm + ' GSM' : '', x.rec.width ? x.rec.width + ' cm' : '', ageText(x.rec.date ? (Date.now() - x.rec.date) / 2.63e9 : null)].filter(Boolean).join(' · ') + '</small></td><td class="n">' + rp(x.value) + per(r.metric) + '</td></tr>'; }).join('') +
+        '</tbody></table>';
+    }
+    if (r.otherSource) h += '<div class="hint" style="margin-top:10px">' + esc(r.otherSource.source) + ' quotes for similar fabric: median ' + rp(r.otherSource.median) + per(r.metric) + ' (' + r.otherSource.n + ' quotes) — shown for reference, not scored.</div>';
+    h += '</div>';
+  }
+  el.innerHTML = h;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---------- list ----------
+var VKEY = { 'Way above market': 'way', 'Expensive': 'high', 'Fair price': 'fair', 'Cheap': 'low', 'Cheaper than all quotes': 'low' };
+function renderList() {
+  var q = ($('search').value || '').toLowerCase();
+  var items = (cache.inquiries || []).map(function (o) { return { o: o, pending: false }; })
+    .concat(queue.map(function (o) { return { o: o, pending: true }; }))
+    .filter(function (x) { return !q || [x.o.description, x.o.vendor, x.o.event, x.o.material, x.o.category].join(' ').toLowerCase().indexOf(q) >= 0; })
+    .sort(function (a, b) { return String(b.o.savedAt || b.o.date).localeCompare(String(a.o.savedAt || a.o.date)); });
+  if (!items.length) { $('inq-list').innerHTML = '<div class="empty">No inquiries saved yet.<br>Use <b>Check &amp; save</b> at a booth.</div>'; return; }
+  $('inq-list').innerHTML = items.map(function (x, i) {
+    var o = x.o, k = VKEY[o.verdict] || 'none';
+    var kg = E.num(o.idrKg), sq = E.num(o.idrSqm);
+    return '<div class="list-item" data-i="' + i + '"><div><div style="font-weight:600">' + esc(o.description) + (x.pending ? '<span class="tag pend">not synced</span>' : '') + '</div>' +
+      '<div class="hint">' + esc([o.vendor, o.event, String(o.date || '').slice(0, 10)].filter(Boolean).join(' · ')) + '</div>' +
+      '<div class="hint">' + esc(orig(E.num(o.price), o.currency, o.unit)) + (kg ? ' · ' + rp(kg) + '/kg' : sq ? ' · ' + rp(sq) + '/m²' : '') + '</div></div>' +
+      '<span class="pill v-' + k + '">' + esc(o.verdict || '—') + '</span></div>';
   }).join('');
-}
-
-function variantRow(v={},i){
-  return `<div class="v-row" data-vi="${i}">
-    <input data-vk="name" value="${escapeHtml(v.name||'')}" placeholder="color/size">
-    <input data-vk="sku" value="${escapeHtml(v.sku||'')}" placeholder="SKU">
-    <input data-vk="price" value="${escapeHtml(v.price||'')}" placeholder="±price">
-    <button data-vremove="${i}">×</button>
-  </div>`;
-}
-
-function updatePriceConv(){
-  const it = state.editing; if(!it) return;
-  const conv = $('#priceConv'); if(!conv) return;
-  const idr = calcIDR(it.price, it.currency);
-  if(idr){
-    conv.classList.remove('empty');
-    conv.textContent = `≈ IDR ${fmtIDR(idr)}  ·  rate ${getRates()[it.currency+'_IDR']}/${it.currency}`;
-  } else {
-    conv.classList.add('empty');
-    conv.textContent = (it.currency==='IDR') ? '' : 'Enter price to see IDR equivalent';
-  }
-}
-
-function bindFormEvents(){
-  $$('#sheetBody [data-k]').forEach(el=>{
-    el.addEventListener('input',()=>{
-      state.editing[el.dataset.k]=el.value;
-      if(el.dataset.k==='price' || el.dataset.k==='currency') updatePriceConv();
-    });
-    el.addEventListener('change',()=>{
-      if(el.dataset.k==='currency') updatePriceConv();
-    });
-  });
-  const pin = $('#photoInput');
-  if(pin){
-    pin.addEventListener('change', async e=>{
-      for(const f of e.target.files){
-        try{
-          const data = await fileToCompressed(f);
-          state.editing.photos = state.editing.photos || [];
-          const photo = { data, addedAt:Date.now(), uploading: Drive.connected, uploadFailed:false };
-          state.editing.photos.push(photo);
-          refreshPhotos();
-          if(Drive.connected){
-            const fn = `cf_${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
-            const r = await Drive.uploadPhoto(data, fn);
-            if(r && r.id){
-              photo.driveId = r.id; photo.driveUrl = r.url; photo.driveThumbnail = r.thumbnail;
-            } else if(r && r.optimistic){
-              photo.driveUploaded = true;
-            }
-            photo.uploading = false;
-            refreshPhotos();
-          }
-        }catch(err){console.error(err); toast('Could not add photo', true);}
-      }
-      e.target.value='';
-    });
-  }
-  $$('#sheetBody .photo button[data-photo]').forEach(b=>{
-    b.addEventListener('click',e=>{
-      e.stopPropagation();
-      const i=+b.dataset.photo;
-      state.editing.photos.splice(i,1);
-      refreshPhotos();
-    });
-  });
-  const addV = $('#addVariant');
-  if(addV) addV.addEventListener('click',()=>{
-    state.editing.variants = state.editing.variants || [];
-    state.editing.variants.push({name:'',sku:'',price:''});
-    refreshVariants();
-  });
-  $$('#variants .v-row').forEach(row=>{
-    const i = +row.dataset.vi;
-    row.querySelectorAll('input[data-vk]').forEach(inp=>{
-      inp.addEventListener('input',()=>{ state.editing.variants[i][inp.dataset.vk]=inp.value; });
-    });
-    const rm = row.querySelector('[data-vremove]');
-    if(rm) rm.addEventListener('click',()=>{ state.editing.variants.splice(i,1); refreshVariants(); });
-  });
-  $$('#sheetBody .actions button').forEach(b=>{
-    b.addEventListener('click', e=>{
-      e.preventDefault();
-      const act = b.dataset.act;
-      if(act==='del'){
-        if(!confirm('Delete this product?')) return;
-        const idToDel = state.editing.id;
-        DB.del(idToDel).then(()=>{ Drive.deleteProduct(idToDel); reload().then(()=>{ close(); toast('Deleted'); }); });
-      } else if(act==='pdf'){
-        // SYNC path — iOS Safari blocks window.print() outside user gesture, so no await
-        const it = state.editing;
-        if(!it.name || !it.name.trim()){ toast('Product name is required', true); return; }
-        it.updatedAt = Date.now();
-        const idx = state.products.findIndex(p=>p.id===it.id);
-        const snap = JSON.parse(JSON.stringify(it));
-        if(idx >= 0) state.products[idx] = snap; else state.products.push(snap);
-        DB.put(it);
-        Drive.syncProduct(it);
-        generatePDF(it.id);
-      }
+  [].forEach.call($('inq-list').children, function (el) {
+    el.addEventListener('click', function () {
+      var o = items[+el.dataset.i].o;
+      writeForm(o); showTab('check');
+      var rec = E.inquiryRecord(o, settings);
+      renderResult(o, rec, E.analyze(rec, pool, settings, new Date()));
     });
   });
 }
-function refreshPhotos(){
-  const wrap = $('#photos');
-  if(!wrap) return;
-  wrap.innerHTML = renderPhotos(state.editing.photos||[]) +
-    `<label class="add-photo"><span>+</span>add photo
-      <input type="file" accept="image/*" capture="environment" multiple id="photoInput"></label>`;
-  bindFormEvents();
+$('search').addEventListener('input', renderList);
+
+// ---------- settings ----------
+function loadSettingsForm() {
+  $('s-url').value = settings.url; $('s-key').value = settings.key;
+  $('s-rmb').value = settings.rmb; $('s-usd').value = settings.usd;
+  $('s-half').value = settings.halfLifeMonths; $('s-stale').value = settings.staleMonths;
+  $('s-inq').checked = !!settings.includeInquiries;
 }
-function refreshVariants(){
-  $('#variants').innerHTML = (state.editing.variants||[]).map((v,i)=>variantRow(v,i)).join('');
-  bindFormEvents();
+function saveSettings() { lsSet(LS.settings, settings); }
+function readScoring() {
+  settings.rmb = +$('s-rmb').value || E.DEFAULTS.rmb; settings.usd = +$('s-usd').value || E.DEFAULTS.usd;
+  settings.halfLifeMonths = +$('s-half').value || E.DEFAULTS.halfLifeMonths;
+  settings.staleMonths = +$('s-stale').value || E.DEFAULTS.staleMonths;
+  settings.includeInquiries = $('s-inq').checked;
 }
-
-async function save(opts={}){
-  const it = state.editing;
-  if(!it){ if(!opts.silent) close(); return false; }
-  if(!it.name || !it.name.trim()){ toast('Product name is required', true); return false; }
-  it.updatedAt = Date.now();
-  await DB.put(it);
-  Drive.syncProduct(it);
-  await reload();
-  if(!opts.silent){ close(); toast(Drive.connected ? 'Saved & synced to Sheet' : 'Saved'); }
-  return true;
-}
-
-/* =================== PDF (iframe-isolated) =================== */
-function generatePDF(id){
-  const p = state.products.find(x=>x.id===id);
-  if(!p){ toast('Save first', true); return; }
-  const date = new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
-  const row = (k,v) => v ? `<tr><td>${k}</td><td>${escapeHtml(v)}</td></tr>` : '';
-  const idr = calcIDR(p.price, p.currency);
-  const priceLine = p.price ? `${p.currency||'USD'} ${p.price}${idr?`  (≈ IDR ${fmtIDR(idr)})`:''}` : '';
-  const dims = [p.itemW,p.itemL,p.itemH].filter(x=>x!==''&&x!=null).join(' × ');
-  const pkgDims = [p.pkgW,p.pkgL,p.pkgH].filter(x=>x!==''&&x!=null).join(' × ');
-  const safeName = (p.name||'product').replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'_').slice(0,60) || 'product';
-
-  const inner = `
-    <h1>${escapeHtml(p.name||'(unnamed)')}</h1>
-    <div class="sub">Canton Fair &middot; ${date}${p.supplierName?` &middot; ${escapeHtml(p.supplierName)}`:''}</div>
-
-    ${(p.photos&&p.photos.length)?`
-      <h2>Photos</h2>
-      <div class="ph-grid">${p.photos.map(ph=>`<img src="${ph.data||ph.driveThumbnail||''}" crossorigin="anonymous">`).join('')}</div>
-    `:''}
-
-    <div class="cols">
-      <div>
-        <h2>Product</h2>
-        <table>
-          ${row('Category', p.category)}
-          ${row('Description', p.description)}
-          ${row('Price', priceLine)}
-          ${row('MOQ', p.moq)}
-          ${row('Lead time', p.leadTime)}
-          ${row('Sample', [p.sampleStatus, p.sampleCost].filter(Boolean).join(' · '))}
-        </table>
-      </div>
-      <div>
-        <h2>Supplier</h2>
-        <table>
-          ${row('Company', p.supplierName)}
-          ${row('Booth', p.supplierBooth)}
-          ${row('Contact', p.supplierContact)}
-          ${row('Factory loc.', p.factoryLoc)}
-          ${row('Nearest port', p.nearestPort)}
-        </table>
-      </div>
-    </div>
-
-    <div class="cols">
-      <div>
-        <h2>Item Specs</h2>
-        <table>
-          ${row('Dim (cm) W×L×H', dims)}
-          ${row('Weight (g)', p.weightG)}
-          ${row('GSM', p.gsm)}
-          ${row('Material', p.material)}
-        </table>
-      </div>
-      <div>
-        <h2>Packaging</h2>
-        <table>
-          ${row('Pkg dim (cm) W×L×H', pkgDims)}
-          ${row('Pkg material', p.pkgMaterial)}
-          ${row('Pkg notes', p.pkgNotes)}
-        </table>
-      </div>
-    </div>
-
-    ${(p.variants&&p.variants.length)?`
-      <h2>Variants</h2>
-      <table>
-        <tr style="background:#f0f9ff"><td><b>Name</b></td><td><b>SKU</b></td><td><b>Price &plusmn;</b></td></tr>
-        ${p.variants.map(v=>`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.sku)}</td><td>${escapeHtml(v.price)}</td></tr>`).join('')}
-      </table>`:''}
-
-    ${p.notes?`<h2>Notes</h2><div class="notes-box">${escapeHtml(p.notes)}</div>`:''}
-  `;
-
-  const docHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>canton_${safeName}</title>
-<style>
-  @page{size:A4;margin:10mm}
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:#fff;color:#0f2438;
-    font:10.5px/1.35 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif}
-  h1{font-size:17px;margin:0 0 1px;color:#0369a1;font-weight:700;letter-spacing:.1px}
-  .sub{color:#5d7286;font-size:10px;margin-bottom:7px;border-bottom:1.5px solid #38bdf8;padding-bottom:4px}
-  h2{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#0369a1;
-    margin:7px 0 2px;padding:0 0 1px;border-bottom:1px solid #d9e6f0;font-weight:700}
-  table{width:100%;border-collapse:collapse;font-size:10px;margin:1px 0 0}
-  table td{padding:2px 5px;vertical-align:top;border-bottom:1px solid #eaf3fa;line-height:1.3}
-  table td:first-child{width:32%;color:#5d7286;font-weight:500}
-  .ph-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:3px 0 0;page-break-inside:avoid}
-  .ph-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:3px;border:1px solid #d9e6f0;display:block}
-  .notes-box{background:#f7fbfd;border:1px solid #d9e6f0;border-radius:4px;
-    padding:5px 8px;font-size:10px;white-space:pre-wrap;line-height:1.4}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
-  .cols > div{min-width:0}
-  .cols h2{margin-top:4px}
-</style>
-</head><body>${inner}</body></html>`;
-
-  // remove any existing print iframe
-  const old = document.getElementById('printIframe');
-  if(old) old.remove();
-
-  // create on-screen iframe (visible but covered by overlay), iOS needs it in viewport
-  const iframe = document.createElement('iframe');
-  iframe.id = 'printIframe';
-  iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:0;background:#fff;z-index:99999;';
-  document.body.appendChild(iframe);
-
-  const idoc = iframe.contentDocument || iframe.contentWindow.document;
-  idoc.open();
-  idoc.write(docHtml);
-  idoc.close();
-
-  // Force layout in iframe, then print synchronously (iOS user-gesture friendly)
-  void iframe.contentDocument.body.offsetHeight;
-  document.title = `canton_${safeName}`;
-  try{
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-  }catch(e){
-    console.error(e);
-    toast('Print failed: '+(e.message||'unknown'), true);
-  }
-  // cleanup after dialog has had time to capture
-  setTimeout(()=>{ if(iframe.parentNode) iframe.remove(); }, 2500);
-}
-
-/* =================== BACKUP =================== */
-async function exportJson(){
-  const data = { version:3, exportedAt:new Date().toISOString(), products:state.products, rates:getRates() };
-  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `canton-products-${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
-  toast('Backup downloaded');
-}
-async function importJson(file){
-  try{
-    const txt = await file.text();
-    const data = JSON.parse(txt);
-    if(!data.products) throw new Error('Bad file');
-    if(!confirm('REPLACE all current products with this backup?')) return;
-    await DB.clear();
-    for(const p of data.products) await DB.put(p);
-    if(data.rates) setRates(data.rates);
-    await reload();
-    toast('Restored');
-  }catch(e){ alert('Could not read file: '+e.message); }
-}
-
-/* =================== DRIVE SETUP =================== */
-function setupDriveDialog(){
-  const current = Drive.url;
-  const v = prompt(
-    'Paste your Google Apps Script Web App URL (see ⋯ → How to use for setup steps).\n\nLeave empty to disconnect.',
-    current
-  );
-  if(v===null) return;
-  if(!v.trim()){ Drive.url=''; toast('Drive disconnected'); return; }
-  Drive.url = v.trim();
-  toast('URL saved — try adding a photo to test');
-}
-
-function setupRatesDialog(){
-  const r = getRates();
-  const usd = prompt(`USD → IDR rate\n(current: ${r.USD_IDR})`, r.USD_IDR);
-  if(usd===null) return;
-  const cny = prompt(`CNY → IDR rate\n(current: ${r.CNY_IDR})`, r.CNY_IDR);
-  if(cny===null) return;
-  const eur = prompt(`EUR → IDR rate\n(current: ${r.EUR_IDR})`, r.EUR_IDR);
-  if(eur===null) return;
-  setRates({
-    USD_IDR: parseFloat(usd) || r.USD_IDR,
-    CNY_IDR: parseFloat(cny) || r.CNY_IDR,
-    EUR_IDR: parseFloat(eur) || r.EUR_IDR,
-  });
-  toast('Rates updated');
-  updatePriceConv();
-  render();
-}
-
-/* =================== WIRE UP =================== */
-$('#search').addEventListener('input',e=>{ state.search=e.target.value; render(); });
-$('#addBtn').addEventListener('click',()=>edit(null));
-$('#backBtn').addEventListener('click',close);
-$('#closeX').addEventListener('click',close);
-$('#saveBtn').addEventListener('click',()=>save());
-$('#sheetBg').addEventListener('click',e=>{ if(e.target.id==='sheetBg') close(); });
-
-$('#menuBtn').addEventListener('click',e=>{ e.stopPropagation(); $('#menuList').classList.toggle('show'); });
-document.addEventListener('click',e=>{ if(!e.target.closest('#menuList')&&!e.target.closest('#menuBtn')) $('#menuList').classList.remove('show'); });
-
-$('#setupDrive').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); setupDriveDialog(); });
-$('#rates').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); setupRatesDialog(); });
-$('#openDrive').addEventListener('click',()=>{
-  $('#menuList').classList.remove('show');
-  window.open('https://drive.google.com/drive/search?q=Canton%20Fair', '_blank');
+$('s-save').addEventListener('click', function () {
+  settings.url = $('s-url').value.trim(); settings.key = $('s-key').value.trim(); readScoring(); saveSettings();
+  fetchData().then(function () { toast(lastError ? 'Problem: ' + lastError : 'Loaded ' + quotes.length + ' quotes'); });
 });
-$('#exportJson').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); exportJson(); });
-$('#importJson').addEventListener('click',()=>{ $('#menuList').classList.remove('show'); $('#restoreFile').click(); });
-$('#restoreFile').addEventListener('change',e=>{ if(e.target.files[0]) importJson(e.target.files[0]); e.target.value=''; });
-$('#wipe').addEventListener('click',async ()=>{
-  $('#menuList').classList.remove('show');
-  if(!confirm('ERASE ALL PRODUCT DATA? This cannot be undone.')) return;
-  if(!confirm('Really sure? Make a backup first.')) return;
-  await DB.clear(); await reload(); toast('Erased');
+$('s-save2').addEventListener('click', function () { readScoring(); saveSettings(); rebuild(); toast('Saved'); });
+$('s-use-sheet').addEventListener('click', function () {
+  if (!sheetRates) { toast('No rates found above the header row'); return; }
+  $('s-rmb').value = sheetRates.rmb; $('s-usd').value = sheetRates.usd; readScoring(); saveSettings(); rebuild(); toast('Using sheet rates');
 });
-$('#howto').addEventListener('click',()=>{
-  $('#menuList').classList.remove('show');
-  alert(
-`HOW TO USE
-
-· Tap + to add a product. Each entry has photos, supplier info, price, variants, notes.
-· Photos auto-upload to Google Drive (when connected) — see folder "Canton Fair Photos".
-· Product data auto-syncs to a Google Sheet "Canton Fair Products" inside that folder.
-· Price → IDR converts live based on your rates (⋯ → Exchange rates).
-· PDF: open a product → "Download PDF" → upload to Trello.
-· Backup: ⋯ → Backup data daily.
-· Add to Home Screen: Safari Share → Add to Home Screen.
-
-
-CONNECT GOOGLE DRIVE  (one-time, ~5 min)
-
-1. Open script.google.com → "New project".
-2. Replace Code.gs with the script provided in chat.
-3. Save (floppy icon). Name "Canton Fair Upload".
-4. Top-right "Deploy" → "New deployment".
-5. Gear next to "Select type" → choose "Web app".
-6. Execute as: Me. Who has access: Anyone.
-7. Click Deploy → Authorize (Advanced → Go to project (unsafe) → Allow).
-8. Copy the "Web app URL".
-9. Back here: ⋯ → Connect Google Drive → paste URL.
-
-If you've already connected Drive but the script changed: open script.google.com → Deploy → Manage deployments → ✏️ → New version → Deploy → re-authorize when prompted.`);
+$('s-refresh').addEventListener('click', function () { fetchData().then(function () { toast(lastError ? 'Problem: ' + lastError : 'Up to date'); }); });
+$('s-csv').addEventListener('change', function (e) {
+  var f = e.target.files[0]; if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function () {
+    try {
+      var table = E.parseCSV(rd.result); E.parseQuoteTable(table, settings);
+      cache = { table: table, inquiries: cache.inquiries || [], fetchedAt: new Date().toISOString(), from: 'CSV: ' + f.name };
+      lsSet(LS.cache, cache); lastError = ''; rebuild(); toast('Imported ' + quotes.length + ' quotes');
+    } catch (err) { toast(err.message); }
+  };
+  rd.readAsText(f);
 });
+function renderDataInfo() {
+  var noKg = quotes.filter(function (q) { return q.idrKg == null; }).length;
+  var noDate = quotes.filter(function (q) { return !q.date; }).length;
+  var noPrice = quotes.filter(function (q) { return q.price == null; }).length;
+  $('data-info').innerHTML = quotes.length
+    ? '<b>' + quotes.length + '</b> quotes from ' + esc(cache.from || '—') + ', loaded ' + esc(ago(cache.fetchedAt)) + '.<br>' +
+      inqRecs.length + ' saved fair inquiries' + (settings.includeInquiries ? ' (used as references)' : '') + '.<br>' +
+      noKg + ' without GSM/width (compared per m² or m only) · ' + noDate + ' without a date (weighted lower)' + (noPrice ? ' · ' + noPrice + ' without a price (ignored)' : '') + '.'
+    : 'No reference data loaded yet.';
+  $('sheet-rates').textContent = sheetRates ? 'Sheet shows Rp' + sheetRates.rmb.toLocaleString('en-US') + '/RMB and Rp' + sheetRates.usd.toLocaleString('en-US') + '/USD.' : '';
+}
 
-updateDriveStatus();
-reload();
+// ---------- tabs & toast ----------
+function showTab(t) {
+  ['check', 'list', 'settings'].forEach(function (x) { $('tab-' + x).classList.toggle('hidden', x !== t); });
+  [].forEach.call(document.querySelectorAll('nav button'), function (b) { b.classList.toggle('on', b.dataset.tab === t); });
+  window.scrollTo(0, 0);
+}
+[].forEach.call(document.querySelectorAll('nav button'), function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+var tt;
+function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(function () { t.classList.remove('on'); }, 2600); }
+
+// ---------- start ----------
+loadSettingsForm();
+rebuild();
+var sticky = lsGet(LS.form, null);
+if (sticky) { if (sticky.category) $('f-cat').value = sticky.category; if (sticky.fabricType) $('f-type').value = sticky.fabricType;
+  segSet('f-source', sticky.source || 'Import'); segSet('f-cur', sticky.currency || 'RMB'); segSet('f-unit', sticky.unit || 'm'); $('f-event').value = sticky.event || ''; }
+$('f-date').value = today();
+fetchData();
+})();
 </script>
 </body>
 </html>
