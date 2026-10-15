@@ -33,6 +33,13 @@ nav button{flex:1;background:none;border:0;color:inherit;opacity:.7;padding:10px
   border-bottom:3px solid transparent;cursor:pointer}
 nav button.on{opacity:1;border-bottom-color:var(--accent)}
 #result{scroll-margin-top:110px}
+#login{max-width:420px;margin:12vh auto 0;padding:0 16px}
+#login .card{padding:22px}
+#login h2{font-size:20px;text-transform:none;letter-spacing:0;color:var(--ink);margin-bottom:6px}
+#login .err{color:var(--way);font-size:13px;min-height:18px;margin-top:8px}
+body.locked header nav, body.locked main, body.locked #status{display:none}
+body.locked header{padding-bottom:12px}
+body:not(.locked) #login{display:none}
 header h1{white-space:nowrap}
 main{max-width:720px;margin:0 auto;padding:14px 16px 90px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
@@ -94,7 +101,7 @@ td small{display:block;color:var(--muted);font-size:11.5px}
 .hidden{display:none!important}
 </style>
 </head>
-<body>
+<body class="locked">
 <header>
   <div class="top"><h1>Fabric Price Checker</h1><div id="status">—</div></div>
   <nav>
@@ -103,6 +110,17 @@ td small{display:block;color:var(--muted);font-size:11.5px}
     <button data-tab="settings">Settings</button>
   </nav>
 </header>
+
+<section id="login">
+  <form class="card" id="login-form" autocomplete="off">
+    <h2>Enter access key</h2>
+    <div class="hint" style="font-size:13.5px">The quotation data is private. Enter the key once and this device stays unlocked for 24 hours.</div>
+    <label for="login-key">Access key</label>
+    <input id="login-key" type="password" autocomplete="current-password" required>
+    <div class="err" id="login-err"></div>
+    <div class="btns" style="margin-top:6px"><button type="submit" class="btn" id="login-btn">Unlock</button></div>
+  </form>
+</section>
 
 <main>
 <!-- ============ CHECK ============ -->
@@ -183,13 +201,10 @@ td small{display:block;color:var(--muted);font-size:11.5px}
 <!-- ============ SETTINGS ============ -->
 <section id="tab-settings" class="hidden">
   <div class="card">
-    <h2>Google Sheet connection</h2>
-    <label for="s-url">Apps Script web app URL</label>
-    <input id="s-url" placeholder="https://script.google.com/macros/s/…/exec">
-    <label for="s-key">Access key</label>
-    <input id="s-key" type="password" placeholder="Same as ACCESS_KEY in Code.gs">
-    <div class="hint">Stored only on this device, never in the code on GitHub.</div>
-    <div class="btns"><button class="btn" id="s-save">Save &amp; load live data</button></div>
+    <h2>Access</h2>
+    <div id="session-info" style="font-size:14px"></div>
+    <div class="hint">Connected to the HT quotation Google Sheet. The key is asked again every 24 hours.</div>
+    <div class="btns"><button class="btn ghost" id="s-lock">Lock now</button></div>
   </div>
 
   <div class="card">
@@ -231,7 +246,9 @@ td small{display:block;color:var(--muted);font-size:11.5px}
 (function () {
 'use strict';
 var E = window.FabricEngine;
-var LS = { settings: 'fpc.settings', cache: 'fpc.cache', queue: 'fpc.queue', form: 'fpc.form' };
+var SHEET_URL = 'https://script.google.com/a/macros/kawanlama-mfg.com/s/AKfycbzTZlWYkzWsX5W8uYoIK0h3TPDCITcYuW2c5IOHFHBFwT4paaL6gvwm0tN1qpTj-BEd/exec';
+var SESSION_MS = 24 * 60 * 60 * 1000;
+var LS = { settings: 'fpc.settings', cache: 'fpc.cache', queue: 'fpc.queue', form: 'fpc.form', session: 'fpc.session', keyHash: 'fpc.keyHash' };
 function lsGet(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
 function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 var $ = function (id) { return document.getElementById(id); };
@@ -242,6 +259,15 @@ var cache = lsGet(LS.cache, null) || { table: null, inquiries: [], fetchedAt: nu
 var queue = lsGet(LS.queue, []);
 var quotes = [], inqRecs = [], pool = [], sheetRates = null, lastError = '', loading = false;
 var lastResult = null;
+var session = lsGet(LS.session, null);   // { key, at }
+function sessionValid() { return !!(session && session.key && Date.now() - session.at < SESSION_MS); }
+function sha256(s) {
+  try {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode('fpc:' + s)).then(function (b) {
+      return Array.prototype.map.call(new Uint8Array(b), function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+    }).catch(function () { return null; });
+  } catch (e) { return Promise.resolve(null); }
+}
 
 var FINISHES = ['Solid', 'Print', 'Digital print', 'Emboss', 'Washed', 'Brushed', 'Coated / TPU', 'Hotmelt', 'Jacquard', 'Quick dry', 'Fire retardant'];
 var CUR_SYM = { RMB: '¥', USD: '$', IDR: 'Rp' };
@@ -261,29 +287,40 @@ function rebuild() {
 }
 
 function fetchData() {
-  if (!settings.url || !settings.key) { renderStatus(); return Promise.resolve(); }
+  if (!sessionValid()) { lock(); return Promise.resolve({ ok: false }); }
+  return loadSheet(session.key).then(function (res) {
+    if (res.auth) { lock('The access key was changed. Enter the new key.'); }
+    return res;
+  });
+}
+function loadSheet(key) {
   loading = true; renderStatus();
-  return fetch(settings.url + (settings.url.indexOf('?') < 0 ? '?' : '&') + 'key=' + encodeURIComponent(settings.key))
+  var authFail = false;
+  return fetch(SHEET_URL + '?key=' + encodeURIComponent(key))
     .then(function (r) { return r.json(); })
     .then(function (j) {
-      if (!j.ok) throw new Error(j.error || 'Sheet error');
+      if (!j.ok) { authFail = /key/i.test(j.error || ''); throw new Error(j.error || 'Sheet error'); }
       cache = { table: j.table, inquiries: j.inquiries || [], fetchedAt: j.fetchedAt, from: 'sheet: ' + j.sheet };
       lsSet(LS.cache, cache); lastError = '';
       // drop queued items the sheet already has
       var ids = {}; cache.inquiries.forEach(function (o) { ids[o.id] = 1; });
       queue = queue.filter(function (q) { return !ids[q.id]; }); lsSet(LS.queue, queue);
     })
-    .catch(function (e) { lastError = navigator.onLine ? e.message : 'Offline'; })
-    .then(function () { loading = false; rebuild(); return syncQueue(); });
+    .then(function () { return { ok: true }; })
+    .catch(function (e) {
+      lastError = authFail ? e.message : navigator.onLine ? 'Can’t reach the sheet' : 'Offline';
+      return { ok: false, auth: authFail, net: !authFail };
+    })
+    .then(function (res) { loading = false; rebuild(); if (res.ok) syncQueue(); return res; });
 }
 
 function syncQueue() {
-  if (!settings.url || !queue.length || !navigator.onLine) { renderStatus(); return Promise.resolve(); }
+  if (!sessionValid() || !queue.length || !navigator.onLine) { renderStatus(); return Promise.resolve(); }
   var pending = queue.slice(), chain = Promise.resolve();
   pending.forEach(function (q) {
     chain = chain.then(function () {
-      return fetch(settings.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ key: settings.key, action: 'addInquiry', inquiry: q }) })
+      return fetch(SHEET_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ key: session.key, action: 'addInquiry', inquiry: q }) })
         .then(function (r) { return r.json(); })
         .then(function (j) {
           if (!j.ok) throw new Error(j.error);
@@ -312,7 +349,7 @@ function renderStatus() {
   if (queue.length) parts.push(queue.length + ' to sync');
   if (lastError && !loading) parts.push('⚠ ' + lastError);
   $('status').textContent = parts.join(' · ');
-  $('setupNote').classList.toggle('hidden', !!(settings.url || quotes.length));
+  $('setupNote').classList.add('hidden');
 }
 
 // ---------- form ----------
@@ -394,7 +431,7 @@ function saveInquiry(o, rec, res) {
   });
   queue.push(inq); lsSet(LS.queue, queue);
   rebuild();
-  toast(settings.url ? (navigator.onLine ? 'Saved — syncing to sheet' : 'Saved offline — will sync') : 'Saved on this device (no sheet connected)');
+  toast(navigator.onLine ? 'Saved — syncing to sheet' : 'Saved offline — will sync when online');
   syncQueue();
 }
 function round(v) { return v == null ? '' : Math.round(v); }
@@ -499,7 +536,6 @@ $('search').addEventListener('input', renderList);
 
 // ---------- settings ----------
 function loadSettingsForm() {
-  $('s-url').value = settings.url; $('s-key').value = settings.key;
   $('s-rmb').value = settings.rmb; $('s-usd').value = settings.usd;
   $('s-half').value = settings.halfLifeMonths; $('s-stale').value = settings.staleMonths;
   $('s-inq').checked = !!settings.includeInquiries;
@@ -511,10 +547,62 @@ function readScoring() {
   settings.staleMonths = +$('s-stale').value || E.DEFAULTS.staleMonths;
   settings.includeInquiries = $('s-inq').checked;
 }
-$('s-save').addEventListener('click', function () {
-  settings.url = $('s-url').value.trim(); settings.key = $('s-key').value.trim(); readScoring(); saveSettings();
-  fetchData().then(function () { toast(lastError ? 'Problem: ' + lastError : 'Loaded ' + quotes.length + ' quotes'); });
+$('s-lock').addEventListener('click', function () { lock(); });
+
+// ---------- lock / unlock ----------
+function lock(msg) {
+  session = null; lsSet(LS.session, null);
+  document.body.classList.add('locked');
+  $('login-key').value = '';
+  $('login-err').textContent = msg || '';
+  setTimeout(function () { try { $('login-key').focus(); } catch (e) {} }, 50);
+}
+function unlockUI() {
+  document.body.classList.remove('locked');
+  renderSession();
+}
+function renderSession() {
+  if (!sessionValid()) { $('session-info').textContent = ''; return; }
+  var left = SESSION_MS - (Date.now() - session.at);
+  var h = Math.floor(left / 3600000), m = Math.floor(left % 3600000 / 60000);
+  $('session-info').innerHTML = '<b>Unlocked</b> · asks for the key again in ' + h + ' h ' + m + ' min';
+}
+$('login-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var key = $('login-key').value.trim();
+  if (!key) return;
+  $('login-btn').disabled = true; $('login-btn').textContent = 'Checking…'; $('login-err').textContent = '';
+  loadSheet(key).then(function (res) {
+    if (res.ok) {
+      return sha256(key).then(function (h) {
+        if (h) lsSet(LS.keyHash, h);
+        session = { key: key, at: Date.now() }; lsSet(LS.session, session);
+        unlockUI(); toast('Unlocked for 24 hours · ' + quotes.length + ' quotes loaded');
+      });
+    }
+    if (res.auth) { $('login-err').textContent = 'Wrong key. Check the ACCESS_KEY in the Apps Script.'; return; }
+    // no network: accept the key if it matches the last key that was verified online
+    return sha256(key).then(function (h) {
+      var known = lsGet(LS.keyHash, null);
+      if (h && known && h === known && cache.table) {
+        session = { key: key, at: Date.now() }; lsSet(LS.session, session);
+        unlockUI(); toast('Unlocked offline · using saved data');
+      } else {
+        $('login-err').textContent = navigator.onLine
+          ? 'Can’t reach the Google Sheet. Make sure the Apps Script is deployed with access "Anyone".'
+          : 'You’re offline. Connect once to unlock this device.';
+      }
+    });
+  }).then(function () { $('login-btn').disabled = false; $('login-btn').textContent = 'Unlock'; });
 });
+// re-check when the app comes back to the foreground, and every minute
+function checkExpiry() {
+  if (document.body.classList.contains('locked')) return;
+  if (!sessionValid()) lock('24 hours have passed. Enter the key again.');
+  else renderSession();
+}
+document.addEventListener('visibilitychange', function () { if (!document.hidden) checkExpiry(); });
+setInterval(checkExpiry, 60000);
 $('s-save2').addEventListener('click', function () { readScoring(); saveSettings(); rebuild(); toast('Saved'); });
 $('s-use-sheet').addEventListener('click', function () {
   if (!sheetRates) { toast('No rates found above the header row'); return; }
@@ -562,7 +650,8 @@ var sticky = lsGet(LS.form, null);
 if (sticky) { if (sticky.category) $('f-cat').value = sticky.category; if (sticky.fabricType) $('f-type').value = sticky.fabricType;
   segSet('f-source', sticky.source || 'Import'); segSet('f-cur', sticky.currency || 'RMB'); segSet('f-unit', sticky.unit || 'm'); $('f-event').value = sticky.event || ''; }
 $('f-date').value = today();
-fetchData();
+if (sessionValid()) { unlockUI(); fetchData(); }
+else lock(session ? '24 hours have passed. Enter the key again.' : '');
 })();
 </script>
 </body>

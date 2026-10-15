@@ -29,10 +29,10 @@ After you edit `Code.gs` later, use **Deploy → Manage deployments → Edit →
 2. Go to **Settings → Pages → Deploy from branch → main / root**.
 3. Open `https://<your-user>.github.io/fabric-price-checker/` on your phone. Then use **Share → Add to Home Screen**.
 
-### 3. Connect
-On the phone, go to **Settings**, paste the Web app URL and access key, then tap **Save & load live data**.
+### 3. Unlock
+The Web app URL is built into `index.html` (`SHEET_URL`). Open the page and enter the access key. That device stays unlocked for 24 hours, then asks for the key again. Use **Settings → Lock now** to lock it earlier.
 
-The URL and key are stored only on that phone, so the public repo contains no prices and no link to your sheet.
+The repo contains the URL but no prices. Without the key, the script returns nothing. If you change `ACCESS_KEY`, every device is asked for the new key the next time it loads data.
 
 ## How the verdict works
 1. **Normalise.** Every quote is converted to IDR per kg: price per m ÷ (GSM × width cm ÷ 100,000).
@@ -57,4 +57,3 @@ The last loaded data is cached on the phone, so checks work without signal. Save
 - Fill in **GSM and width** for the cotton, TC, Tencel and bamboo bedding rows. About 20 rows are missing them, so those rows can only be compared per m².
 - Add a **Quote Date** to the about 20 undated rows.
 - Row with a Trello link as the vendor: replace it with the vendor name.
-  
